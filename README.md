@@ -1,44 +1,27 @@
 # Vue 3 Kanban Board
 
-A modern, keyboard-driven Kanban board application built with Vue 3, TypeScript, and Tailwind CSS.
+A power-user friendly keyboard-driven Kanban board application built with Vue
+3, TypeScript, and Tailwind CSS.
+
+![Kanban](doc/screenshot.png)
+
 
 ## Features
 
-- **Multi-board Support**: Create, manage, and switch between multiple Kanban boards
-- **Drag & Drop**: Intuitive card movement between columns
-- **Tag System**: Organize cards with hashtag-based tagging (#bug, #feature, etc.)
-- **Advanced Filtering**: Filter cards by tags and search text
-- **Keyboard Navigation**: Complete keyboard control for power users
-- **Tag Typing Mode**: Quick tag filtering by typing # followed by tag name
-- **Data Persistence**: Uses IndexedDB for offline data storage
-- **Import/Export**: JSON-based board backup and sharing
+- **Keyboard Navigation**: press ctrl+H to learn mode
+- **Multi-board Support**
+- **Drag & Drop**
+- **Tag System**: dynamic tags from task content
+- **Advanced Filtering**
+- **Data Persistence**: using indexedDB
+- **Import/Export**: to JSON files
 - **Markdown Support**: Basic markdown rendering in card content
 
-## Architecture
+## Not obvious
 
-The application follows Vue 3 best practices with a clean separation of concerns:
-
-### Key Components
-
-- **MainView.vue**: Main application container handling all UI interactions
-- **KanbanBoard.vue**: Pure Kanban board component focused only on board logic
-- **TaskManager.ts**: Service class handling all task calculation and filtering logic
-- **Board Store (Pinia)**: Manages board persistence and navigation
-- **Kanban Store (Pinia)**: Manages card state and filtering
-- **Keyboard Navigation**: Composable for comprehensive keyboard shortcuts
-- **Board Manager**: Separate component for board title editing and selection
-- **Help Modal**: Extracted help system component
-
-### Stores (Pinia)
-
-- **useBoardStore**: Handles board CRUD operations, storage, and routing
-- **useKanbanStore**: Manages cards, filtering, focus state, and tag typing mode
-
-### Services
-
-- **TaskManager**: Pure functions for card filtering, positioning, and focus management
-- **Storage**: IndexedDB wrapper for persistent data storage
-- **Router**: Hash-based routing for board navigation
+- Press '#' followed by a tag to find it quickly. Use arrows when multiple tags match.
+- Enter #tag in your task content to automatically create a tag. Tags will show under the content. If a line contains only tags, it will not be shown in the content.
+- Use simple markdown in your tasks.
 
 ## Installation
 
@@ -57,128 +40,25 @@ npm run dev
 npm run build
 ```
 
-## Usage
-
-### Basic Operations
-
-- **Add Card**: Double-click on a column or use the + button
-- **Edit Card**: Double-click on a card or press Enter/Space/F2 when focused
-- **Move Card**: Drag and drop between columns
-- **Delete Card**: Drag to delete column or Alt+Click or Delete key
-- **Complete Card**: F9 to move card to next column
-
-### Keyboard Shortcuts
-
-#### Navigation
-- `↑↓` - Navigate cards vertically
-- `←→` - Navigate cards horizontally  
-- `Home/End` - Jump to first/last card in column
-- `/` - Focus search
-- `#` - Focus tags / Start tag typing
-
-#### Card Actions
-- `Enter/Space/F2` - Edit focused card
-- `Insert` - Insert card above current
-- `Delete` - Delete focused card
-- `F9` - Complete card (move to next column)
-
-#### Moving Cards
-- `Alt+↑↓` - Move card up/down in column
-- `Alt+←→` - Move card to adjacent column
-- `Alt+Home/End` - Move card to top/bottom of column
-
-#### Board Management
-- `Ctrl+B` - Create new board
-- `Alt+T` - Focus board title
-- `Ctrl+[/]` - Switch between boards
-- `Ctrl+E` - Export current board
-- `Ctrl+I` - Import board
-
-#### Filtering & Tags
-- `#tagname` - Type to filter by tag
-- `←→` - Navigate matching tags (in tag mode)
-- `Space` - Toggle tag selection
-- `Shift+Space/Click` - Multi-select tags
-- `Enter` - Apply filter & focus first card
-- `Ctrl+K` - Clear all filters
-
-#### General
-- `Ctrl+H` - Toggle help
-- `Esc` - Cancel edit / Exit typing / Close help
-
-### Tag System
-
-- Add hashtags anywhere in card content: `#bug #urgent #backend`
-- Tags are automatically extracted and available for filtering
-- Use tag typing mode (`#`) for quick filtering
-- Multiple tag selection with Shift+Click or Shift+Space
-
-### Tag Typing Mode
-
-1. Press `#` to enter tag typing mode
-2. Type tag name (auto-completes with existing tags)
-3. Use `←→` to select from matching tags
-4. Press `Enter` to apply filter
-5. Press `Space` or `Esc` to cancel
-
-## Development
-
-### Project Structure
-
-```
-src/
-├── components/          # Vue components
-│   ├── MainView.vue    # Main application view
-│   ├── KanbanBoard.vue # Pure kanban board
-│   ├── KanbanColumn.vue # Individual column
-│   ├── KanbanCard.vue  # Individual card
-│   ├── BoardManager.vue # Board management
-│   ├── SearchWidget.vue # Search functionality
-│   ├── TagSelector.vue # Tag filtering
-│   └── HelpModal.vue   # Help system
-├── stores/             # Pinia stores
-│   ├── useBoardStore.ts # Board management
-│   └── useKanbanStore.ts # Kanban state
-├── services/           # Business logic
-│   ├── TaskManager.ts  # Task operations
-│   ├── storage.ts      # IndexedDB wrapper
-│   └── router.ts       # Hash routing
-├── composables/        # Vue composables
-│   └── useKeyboardNavigation.ts
-├── types.ts           # TypeScript definitions
-├── utils.ts           # Utility functions
-└── main.ts           # Application entry point
-```
-
-### State Management
-
-The application uses Pinia for state management with two main stores:
-
-- **Board Store**: Manages board lifecycle, persistence, and navigation
-- **Kanban Store**: Manages cards, filtering, focus, and UI state
-
-### Reactive State Design
-
-Vue 3's reactivity system is leveraged for:
-- Automatic UI updates when cards/boards change
-- Debounced auto-saving to IndexedDB
-- Real-time filter updates
-- Keyboard focus management
-
-### Keyboard Handling
-
-Unlike React, Vue's keyboard handling is implemented as a composable that:
-- Centralizes all keyboard shortcuts
-- Properly handles Vue's reactive state
-- Integrates with component lifecycle
-- Provides clean separation of concerns
-
 ## Browser Support
 
 - Modern browsers with ES2020 support
 - IndexedDB support required for persistence
 - CSS Grid and Flexbox support required
 
+## Note
+
+This project was done as an experimentation to use LLMS based code generation
+tools, and trying to achieve readable maintainable code. To make the
+experimentation relevant, the goal was to create an application that I would
+use daily.
+
+
 ## License
 
-MIT License - feel free to use in your own projects!
+This project is licensed under the Apache License 2.0.
+
+Attribution requirement:
+If this project is used in a product (commercial or non-commercial), the documentation, about section, or credits must include the following notice:
+
+"This product uses Kanban by Martijn van der Kwast (https://github.com/mvdkwast/kanban])"

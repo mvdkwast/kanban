@@ -1,0 +1,100 @@
+@import "tailwindcss";
+@custom-variant hover (&:hover);
+
+::selection {
+    background: var(--color-blue-800);
+    color: var(--color-gray-50);
+}
+
+.hyphenated {
+    hyphens: auto;
+    overflow-wrap: break-word;
+}
+
+.custom-scrollbar {
+    width: calc(100% + 8px);
+    padding-right: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    border-radius: 6px;
+    background-color: #1f2937;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    border-radius: 8px;
+    background-color: #4b5563;
+}
+
+/* Vue transition classes */
+.v-enter-active,
+.v-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.v-enter-from,
+.v-leave-to {
+  opacity: 0;
+}
+
+/* Kanban-specific styles */
+.kanban-card {
+  /* No hover effects */
+}
+
+/* Dragging styles */
+.sortable-ghost {
+  opacity: 0.4;
+}
+
+.sortable-drag {
+  opacity: 0.8;
+}
+
+.sortable-chosen {
+  transform: scale(0.95);
+}
+
+/* Drag and drop indicators */
+.drag-indicator {
+  /* Simple, no animation */
+}
+
+/* Smooth transitions for drag indicators */
+.drag-indicator-space {
+  transition: height 0.2s ease-out;
+}
+
+/* Text selection control */
+.select-none {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+.select-text {
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+}
+
+kbd {
+    display: inline-block;
+    padding: 0.2em 0.5em;
+    color: #fff;
+    background-color: #4a5568; /* gray-700 */
+    border-radius: 0.25rem; /* rounded */
+    box-shadow: rgba(0, 0, 0, 0.1) 0px 1px 3px, rgba(0, 0, 0, 0.08) 0px 1px 2px;
+}
+
+/* Markdown styles for cards */
+del {
+    text-decoration: line-through;
+    opacity: 0.7;
+}

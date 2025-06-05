@@ -20,11 +20,25 @@
         <kbd class="text-xs bg-gray-700 px-1.5 py-0.5 rounded">Ctrl+I</kbd>
       </div>
       <div
-        class="flex items-center justify-between px-3 py-2 hover:bg-gray-700 cursor-pointer border-b border-gray-700"
+        class="flex items-center justify-between px-3 py-2 hover:bg-gray-700 cursor-pointer"
+        @click="handleImportAll"
+      >
+        <span class="flex-1 text-sm font-medium">Import All</span>
+        <kbd class="text-xs bg-gray-700 px-1.5 py-0.5 rounded">Ctrl+Shift+I</kbd>
+      </div>
+      <div
+        class="flex items-center justify-between px-3 py-2 hover:bg-gray-700 cursor-pointer"
         @click="handleExport"
       >
         <span class="flex-1 text-sm font-medium">Export</span>
         <kbd class="text-xs bg-gray-700 px-1.5 py-0.5 rounded">Ctrl+E</kbd>
+      </div>
+      <div
+        class="flex items-center justify-between px-3 py-2 hover:bg-gray-700 cursor-pointer border-b border-gray-700"
+        @click="handleExportAll"
+      >
+        <span class="flex-1 text-sm font-medium">Export All</span>
+        <kbd class="text-xs bg-gray-700 px-1.5 py-0.5 rounded">Ctrl+Shift+E</kbd>
       </div>
       <div
         class="flex items-center justify-between px-3 py-2 hover:bg-gray-700 cursor-pointer rounded-b-lg"
@@ -43,7 +57,9 @@ import { GlHamburger } from '@kalimahapps/vue-icons';
 
 interface Emits {
   (e: 'import'): void;
+  (e: 'importAll'): void;
   (e: 'export'): void;
+  (e: 'exportAll'): void;
   (e: 'help'): void;
 }
 
@@ -63,8 +79,18 @@ const handleImport = () => {
   isOpen.value = false;
 };
 
+const handleImportAll = () => {
+  emit('importAll');
+  isOpen.value = false;
+};
+
 const handleExport = () => {
   emit('export');
+  isOpen.value = false;
+};
+
+const handleExportAll = () => {
+  emit('exportAll');
   isOpen.value = false;
 };
 

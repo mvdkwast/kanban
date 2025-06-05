@@ -1,14 +1,11 @@
 import { defineStore } from 'pinia';
 import { ref, computed, watch, nextTick } from 'vue';
-import { watchDebounced } from '@vueuse/core';
-import type { Card, Column, CardPosition } from '../types';
+import type { Card, Column, CardPosition, BoardData } from '../types';
 import { TaskManager } from '../services/TaskManager';
-import { useBoardStore } from './useBoardStore';
 import { useFilter } from '../composables/useFilter';
 import { emitter } from '../services/events';
 
 export const useKanbanStore = defineStore('kanban', () => {
-  const boardStore = useBoardStore();
   const {searchText, selectedTags} = useFilter();
   
   // Define columns
@@ -33,6 +30,7 @@ export const useKanbanStore = defineStore('kanban', () => {
   watch(allTags, (newTags) => {
     emitter.emit('tags:updated', newTags);
   }, { immediate: true });
+
 
   emitter.on('mode:enter', (mode) => {
     if (!mode || mode === 'navigation') {
@@ -378,6 +376,19 @@ export const useKanbanStore = defineStore('kanban', () => {
     }
   };
 
+  /**
+   * Get current board data for external access (e.g., for persistence)
+   */
+  const getCurrentBoardData = (): BoardData => {
+    return {
+      id: '', // ID is managed by boardStore
+      title: boardTitle.value,
+      cards: cards.value,
+      focusedCardId: focusedCardId.value || undefined,
+      lastModified: new Date()
+    };
+  };
+
   // Watch for visible cards changes to trigger position cleanup
   watch(visibleCards, () => {
     nextTick(() => {
@@ -385,18 +396,14 @@ export const useKanbanStore = defineStore('kanban', () => {
     });
   });
   
-  // Auto-save board when cards, title, or focus changes
-  watchDebounced([cards, boardTitle, focusedCardId], async ([newCards, newTitle, newFocusedCardId]) => {
-    if (boardStore.isInitialized && boardStore.currentBoardId && !boardStore.isLoadingBoard) {
-      try {
-        console.log('Auto-saving board:', newTitle, 'with', newCards.length, 'cards', 'focused:', newFocusedCardId);
-        await boardStore.saveBoard(newTitle, newCards, newFocusedCardId || undefined);
-      } catch (error) {
-        console.error('Failed to save board:', error);
-      }
-    }
+  // Emit board change events for external persistence
+  watch([cards, boardTitle, focusedCardId], ([newCards, newTitle, newFocusedCardId]) => {
+    emitter.emit('board:changed', {
+      title: newTitle,
+      cards: newCards,
+      focusedCardId: newFocusedCardId || undefined
+    });
   }, { 
-    debounce: 300,
     deep: true 
   });
 
@@ -430,5 +437,6 @@ export const useKanbanStore = defineStore('kanban', () => {
     updateBoardTitle,
     editCard,
     editFocusedCard,
+    getCurrentBoardData,
   };
 });

@@ -28,8 +28,16 @@ class KeyboardManager {
       emitter.emit('global:export');
     });
     
+    this.globalHandlers.set('ctrl+shift+e', () => {
+      emitter.emit('global:exportAll');
+    });
+    
     this.globalHandlers.set('ctrl+i', () => {
       emitter.emit('global:import');
+    });
+    
+    this.globalHandlers.set('ctrl+shift+i', () => {
+      emitter.emit('global:importAll');
     });
     
     this.globalHandlers.set('ctrl+k', () => {

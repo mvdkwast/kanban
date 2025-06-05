@@ -1,4 +1,4 @@
-import { Modes } from '../types';
+import {BoardData, Card, Modes} from '../types';
 import mitt from "mitt";
 
 export type Events = {
@@ -15,6 +15,8 @@ export type Events = {
     'global:toggleHelp': void;
     'global:export': void;
     'global:import': void;
+    'global:exportAll': void;
+    'global:importAll': void;
     'global:newBoard': void;
     'global:focusTitle': void;
     'global:prevBoard': void;
@@ -22,6 +24,9 @@ export type Events = {
     
     // Card events
     'card:completed': string;
+
+    // board events
+    'board:changed': BoardData;
 }
 
 export const emitter = mitt<Events>();

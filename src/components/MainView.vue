@@ -5,75 +5,86 @@
       <!-- Header -->
       <div class="mb-4 flex items-center justify-between">
         <BoardManager
-          v-model:title="kanbanStore.boardTitle"
-          :boards="boardStore.boards"
-          :current-board-id="boardStore.currentBoardId"
-          :has-multiple-boards="boardStore.hasMultipleBoards"
-          ref="boardManagerRef"
-          @new-board="handleNewBoard"
-          @select-board="handleSelectBoard"
-          @delete-board="handleDeleteBoard"
+            v-model:title="kanbanStore.boardTitle"
+            :boards="boardStore.boards"
+            :current-board-id="boardStore.currentBoardId"
+            :has-multiple-boards="boardStore.hasMultipleBoards"
+            ref="boardManagerRef"
+            @new-board="handleNewBoard"
+            @select-board="handleSelectBoard"
+            @delete-board="handleDeleteBoard"
         />
 
         <div class="flex-1 flex justify-center items-center gap-2">
           <SearchWidget
-            ref="searchWidgetRef"
+              ref="searchWidgetRef"
           />
 
           <button
-            v-if="hasActiveFilters"
-            @click="handleClearFilters"
-            class="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded transition-colors text-sm"
-            title="Clear all filters (Ctrl+K)"
+              v-if="hasActiveFilters"
+              @click="handleClearFilters"
+              class="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded transition-colors text-sm"
+              title="Clear all filters (Ctrl+K)"
           >
             Clear
           </button>
         </div>
 
         <HamburgerMenu
-          @import="handleImportClick"
-          @export="handleExportClick"
-          @help="handleHelpClick"
+            @import="handleImportClick"
+            @import-all="handleImportAllClick"
+            @export="handleExportClick"
+            @export-all="handleExportAllClick"
+            @help="handleHelpClick"
         />
 
         <input
-          ref="fileInputRef"
-          type="file"
-          accept=".json"
-          class="hidden"
-          @change="handleImport"
+            ref="fileInputRef"
+            type="file"
+            accept=".json"
+            class="hidden"
+            @change="handleImport"
+        />
+
+        <input
+            ref="fileInputAllRef"
+            type="file"
+            accept=".json"
+            multiple
+            class="hidden"
+            @change="handleImportAll"
         />
       </div>
 
       <!-- Tag Selector -->
       <TagSelector
-        v-if="kanbanStore.allTags.length > 0"
-        :tag-states="tagStates"
-        :is-active="isTagSelectionActive"
-        :prefix="tagPrefix"
-        :has-no-matches="tagHasNoMatches"
-        @tag-click="handleTagClick"
+          v-if="kanbanStore.allTags.length > 0"
+          :tag-states="tagStates"
+          :is-active="isTagSelectionActive"
+          :prefix="tagPrefix"
+          :has-no-matches="tagHasNoMatches"
+          @tag-click="handleTagClick"
       />
 
       <!-- Typing Overlay -->
       <TypingOverlay
-        :is-visible="isTagSelectionActive"
-        :prefix="tagPrefix"
-        :has-no-matches="tagHasNoMatches"
+          :is-visible="isTagSelectionActive"
+          :prefix="tagPrefix"
+          :has-no-matches="tagHasNoMatches"
       />
 
       <!-- Kanban Board -->
       <KanbanBoard
-        :columns="kanbanStore.columns"
-        :visible-cards="kanbanStore.visibleCards"
-        :focused-card-id="kanbanStore.focusedCardId"
-        @add-card="handleAddCard"
-        @focus-card="handleFocusCard"
-        @update-card="handleUpdateCard"
-        @delete-card="handleDeleteCard"
-        @drop-card="handleDropCard"
-        @clear-column="handleClearColumn"
-        @report-card-position="handleReportCardPosition"
+          :columns="kanbanStore.columns"
+          :visible-cards="kanbanStore.visibleCards"
+          :focused-card-id="kanbanStore.focusedCardId"
+          @add-card="handleAddCard"
+          @focus-card="handleFocusCard"
+          @update-card="handleUpdateCard"
+          @delete-card="handleDeleteCard"
+          @drop-card="handleDropCard"
+          @clear-column="handleClearColumn"
+          @report-card-position="handleReportCardPosition"
       />
 
       <!-- Debug info -->
@@ -105,15 +116,15 @@
 
     <!-- Help Modal -->
     <HelpModal
-      :show-help="showHelp"
-      @close="showHelp = false"
+        :show-help="showHelp"
+        @close="showHelp = false"
     />
 
     <!-- Save feedback toast -->
-    <SaveToast :show="showSaveToast" />
+    <SaveToast :show="showSaveToast"/>
 
     <!-- Completion toast -->
-    <CompletionToast :show="showCompletionToast" :target-column="completionTargetColumn" />
+    <CompletionToast :show="showCompletionToast" :target-column="completionTargetColumn"/>
   </div>
 </template>
 
@@ -125,6 +136,7 @@ import {useRouter} from '../services/router';
 import {useTagSelection} from '../composables/useTagSelection';
 import {useFilter} from '../composables/useFilter';
 import {emitter} from '../services/events';
+import {useImportExportService} from '../services/ImportExportService';
 
 // Components
 import BoardManager from './BoardManager.vue';
@@ -136,10 +148,12 @@ import SaveToast from './SaveToast.vue';
 import TypingOverlay from './TypingOverlay.vue';
 import CompletionToast from './CompletionToast.vue';
 import HamburgerMenu from './HamburgerMenu.vue';
+import {BoardData} from "@/types.ts";
 
 const kanbanStore = useKanbanStore();
 const boardStore = useBoardStore();
-const { currentPath } = useRouter();
+const importExportService = useImportExportService();
+const {currentPath} = useRouter();
 
 // Local state
 const showHelp = ref(false);
@@ -151,6 +165,7 @@ const completionTargetColumn = ref('');
 const boardManagerRef = ref();
 const searchWidgetRef = ref();
 const fileInputRef = ref<HTMLInputElement>();
+const fileInputAllRef = ref<HTMLInputElement>();
 
 
 // Tag selection composable
@@ -163,11 +178,11 @@ const {
 } = useTagSelection();
 
 // Import useFilter
-const { selectedTags: filterSelectedTags, searchText: filterSearchText } = useFilter();
+const {selectedTags: filterSelectedTags, searchText: filterSearchText} = useFilter();
 
 // Computed
-const hasActiveFilters = computed(() => 
-  filterSelectedTags.value.length > 0 || filterSearchText.value
+const hasActiveFilters = computed(() =>
+    filterSelectedTags.value.length > 0 || filterSearchText.value
 );
 
 // Initialize application
@@ -175,11 +190,14 @@ onMounted(async () => {
   // Set up global event listeners
   setupGlobalEventListeners();
 
+  // Set up store orchestration
+  setupStoreOrchestration();
+
   try {
     const allBoards = await boardStore.initializeStorage();
 
     // Determine which board to load
-    let targetBoardId = currentPath.value;
+    let targetBoardId: string | null = currentPath.value;
 
     if (allBoards.length === 0) {
       // No boards exist, create default
@@ -190,44 +208,86 @@ onMounted(async () => {
     const boardExists = allBoards.some(b => b.id === targetBoardId);
     if (!boardExists) {
       // Requested board doesn't exist, use most recent
-      targetBoardId = allBoards[0].id;
-      boardStore.switchToBoard(targetBoardId);
+      targetBoardId = allBoards[0].id || null;
+
+      if (!targetBoardId) {
+        // auto-create failed ?
+        console.error('No boards available to load');
+        return;
+      }
+
+      // Navigate to the correct board
+      const {navigate} = useRouter();
+      navigate(targetBoardId);
+      return; // The route watcher will handle loading
     }
 
-    // Load the target board
-    const boardData = await boardStore.loadBoard(targetBoardId);
-    if (boardData) {
-      kanbanStore.initializeBoard(boardData.title, boardData.cards || [], boardData.focusedCardId);
-    }
+    // Set current board ID (this will trigger loading via watcher)
+    await boardStore.setCurrentBoard(targetBoardId);
   } catch (error) {
     console.error('Failed to initialize application:', error);
   }
 });
 
-// Watch for route changes to load different boards
-watch(currentPath, async (newPath) => {
-  console.log('Route changed to:', newPath);
-  console.log('Current board ID:', boardStore.currentBoardId);
+/**
+ * Set up orchestration between stores and route changes
+ */
+const setupStoreOrchestration = () => {
+  // Watch route changes → update current board ID
+  watch(currentPath, async (newPath) => {
+    console.log('Route changed to:', newPath);
 
-  if (!boardStore.isInitialized) {
-    console.log('Skipping route change - not initialized');
-    return;
-  }
+    if (!boardStore.isInitialized) {
+      console.log('Skipping route change - not initialized');
+      return;
+    }
 
-  if (newPath === boardStore.currentBoardId && !boardStore.isLoadingBoard) {
-    console.log('Skipping route change - already on this board');
-    return;
-  }
+    if (newPath === boardStore.currentBoardId) {
+      console.log('Skipping route change - already on this board');
+      return;
+    }
 
-  console.log('Loading board:', newPath);
-  const boardData = await boardStore.loadBoard(newPath);
-  console.log('Loaded board data:', boardData);
+    console.log('Setting current board ID:', newPath);
+    await boardStore.setCurrentBoard(newPath);
+  });
 
-  if (boardData) {
-    console.log('Initializing kanban store with board data:', boardData.title, boardData.cards?.length || 0, 'focused:', boardData.focusedCardId);
-    kanbanStore.initializeBoard(boardData.title, boardData.cards || [], boardData.focusedCardId);
-  }
-});
+  // Watch current board data changes → initialize kanban store
+  watch(() => boardStore.currentBoardData, async (newBoardData) => {
+    // Skip if we're auto-saving (prevents infinite loop)
+    if (boardStore.isAutoSaving) {
+      console.log('Skipping board data change - auto-saving');
+      return;
+    }
+
+    if (newBoardData) {
+      console.log('Board data changed, initializing kanban store:', newBoardData.title);
+      kanbanStore.initializeBoard(newBoardData.title, newBoardData.cards || [], newBoardData.focusedCardId);
+    } else if (boardStore.currentBoardId) {
+      // Board data not found, try to load it
+      console.log('Board data not found, loading board:', boardStore.currentBoardId);
+      const boardData = await boardStore.setCurrentBoard(boardStore.currentBoardId);
+      if (!boardData) {
+        // Board doesn't exist, redirect to first available board
+        const allBoards = boardStore.boards;
+        if (allBoards.length > 0) {
+          const {navigate} = useRouter();
+          navigate(allBoards[0].id!);
+        }
+      }
+    }
+  }, {immediate: true});
+
+  // Listen to kanban store changes → save to board store
+  emitter.on('board:changed', (boardData: BoardData) => {
+    console.log('Board changed, saving to board store:', boardData.title);
+    boardStore.setBoardData({
+      ...boardData,
+      id: boardStore.currentBoardId,
+      lastModified: new Date()
+    });
+    boardStore.saveCurrentBoard();
+  });
+};
 
 // Note: Auto-focus is now handled by initializeBoard with saved focus state
 
@@ -238,8 +298,11 @@ const handleNewBoard = async () => {
   console.log('New board created, ID:', newBoardId);
 
   if (newBoardId) {
-    console.log('Waiting for board to load before focusing title...');
-    // Wait a bit for the board to load and UI to update
+    // Navigate to the new board
+    const {navigate} = useRouter();
+    navigate(newBoardId);
+
+    // Wait for UI to update then focus title
     setTimeout(() => {
       console.log('Attempting to focus title...');
       boardManagerRef.value?.focusTitle();
@@ -248,11 +311,17 @@ const handleNewBoard = async () => {
 };
 
 const handleSelectBoard = (boardId: string) => {
-  boardStore.switchToBoard(boardId);
+  const {navigate} = useRouter();
+  navigate(boardId);
 };
 
-const handleDeleteBoard = (boardId: string) => {
-  boardStore.deleteBoard(boardId);
+const handleDeleteBoard = async (boardId: string) => {
+  await boardStore.deleteBoard(boardId);
+  // If currentBoardId changed, navigate to it
+  if (boardStore.currentBoardId !== currentPath.value) {
+    const {navigate} = useRouter();
+    navigate(boardStore.currentBoardId);
+  }
 };
 
 
@@ -317,26 +386,20 @@ const handleDropCard = (cardId: string, _sourceColumnId: string, targetColumnId:
   kanbanStore.focusCard(cardId);
 };
 
-const handleExport = () => {
-  const data = JSON.stringify({
-    title: kanbanStore.boardTitle,
-    cards: kanbanStore.cards
-  }, null, 2);
-  const blob = new Blob([data], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = kanbanStore.boardTitle ? `${kanbanStore.boardTitle}.json` : 'kanban-board.json';
-  a.click();
-  URL.revokeObjectURL(url);
-};
-
 const handleExportClick = () => {
-  handleExport();
+  importExportService.exportBoard();
 };
 
 const handleImportClick = () => {
   fileInputRef.value?.click();
+};
+
+const handleExportAllClick = () => {
+  importExportService.exportAllBoards();
+};
+
+const handleImportAllClick = () => {
+  fileInputAllRef.value?.click();
 };
 
 const handleHelpClick = () => {
@@ -347,26 +410,32 @@ const handleImport = async (e: Event) => {
   const target = e.target as HTMLInputElement;
   const file = target.files?.[0];
   if (file) {
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        const data = JSON.parse(e.target?.result as string);
-        const title = data.title || 'Imported Board';
-        const importedCards = data.cards || [];
-
-        // Save the imported board
-        const newBoardId = await boardStore.saveBoard(title, importedCards);
-
-        // Navigate to the imported board
-        boardStore.switchToBoard(newBoardId);
-
-        // Clear filters
-        emitter.emit('filter:reset')
-      } catch (err) {
-        alert('Failed to import file');
+    const boardId = await importExportService.importBoard(file);
+    if (boardId) {
+      if (boardStore.currentBoardId !== boardId) {
+        // Navigate to the newly imported board
+        await boardStore.setCurrentBoard(boardId);
+      } else {
+        // If already on this board, just refresh
+        kanbanStore.initializeBoard(
+            boardStore.currentBoardData?.title ?? 'New Board',
+            boardStore.currentBoardData?.cards || [],
+            boardStore.currentBoardData?.focusedCardId
+        );
       }
-    };
-    reader.readAsText(file);
+    }
+  }
+
+  // Reset the file input
+  target.value = '';
+};
+
+const handleImportAll = async (e: Event) => {
+  const target = e.target as HTMLInputElement;
+  const files = target.files;
+
+  if (files && files.length > 0) {
+    await importExportService.importMultipleBoards(files);
   }
 
   // Reset the file input
@@ -375,18 +444,26 @@ const handleImport = async (e: Event) => {
 
 // Set up global event listeners in the existing onMounted
 const setupGlobalEventListeners = () => {
-  emitter.on('global:toggleHelp', () => { showHelp.value = !showHelp.value; });
-  emitter.on('global:export', handleExport);
-  emitter.on('global:import', () => { fileInputRef.value?.click(); });
-  emitter.on('global:focusTitle', () => { boardManagerRef.value?.focusTitle(); });
-  emitter.on('global:newBoard', () => { boardStore.createNewBoard(); });
+  emitter.on('global:toggleHelp', () => {
+    showHelp.value = !showHelp.value;
+  });
+  emitter.on('global:export', handleExportClick);
+  emitter.on('global:exportAll', handleExportAllClick);
+  emitter.on('global:import', () => {
+    fileInputRef.value?.click();
+  });
+  emitter.on('global:importAll', () => {
+    fileInputAllRef.value?.click();
+  });
+  emitter.on('global:focusTitle', () => {
+    boardManagerRef.value?.focusTitle();
+  });
+  emitter.on('global:newBoard', handleNewBoard);
   emitter.on('global:prevBoard', () => {
-    const prevBoard = boardStore.getPrevBoard();
-    if (prevBoard) boardStore.switchToBoard(prevBoard);
+    boardStore.switchToPreviousBoard();
   });
   emitter.on('global:nextBoard', () => {
-    const nextBoard = boardStore.getNextBoard();
-    if (nextBoard) boardStore.switchToBoard(nextBoard);
+    boardStore.switchToNextBoard();
   });
 
   // FIXME - we should refactor this so the event transmits a card ID instead of a column, then we should refactor
@@ -403,11 +480,14 @@ const setupGlobalEventListeners = () => {
 onUnmounted(() => {
   emitter.off('global:toggleHelp');
   emitter.off('global:export');
+  emitter.off('global:exportAll');
   emitter.off('global:import');
+  emitter.off('global:importAll');
   emitter.off('global:focusTitle');
   emitter.off('global:newBoard');
   emitter.off('global:prevBoard');
   emitter.off('global:nextBoard');
   emitter.off('card:completed');
+  emitter.off('board:changed');
 });
 </script>

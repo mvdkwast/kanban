@@ -1,4 +1,5 @@
-import type { Card, BoardData } from '../types';
+import type {BoardData} from '../types';
+import {generateSlug} from "../services/slug.ts";
 
 class StorageManager {
   private dbName = 'kanban-boards';
@@ -24,30 +25,22 @@ class StorageManager {
     });
   }
 
-  private generateSlug(title: string): string {
-    return title
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '') || 'untitled';
-  }
 
-  async saveBoard(title: string, cards: Card[], currentId?: string, focusedCardId?: string): Promise<string> {
+  async saveBoard(boardData: BoardData): Promise<string> {
     if (!this.db) throw new Error('Database not initialized');
 
-    let finalTitle = title;
-    let newSlug = this.generateSlug(finalTitle);
+    let finalTitle = boardData.title;
+    let newSlug = generateSlug(finalTitle);
     
     // Check for name conflicts (only if this is a new board or title changed)
-    if (!currentId || currentId !== newSlug) {
+    if (!boardData.id || boardData.id !== newSlug) {
       const existingBoard = await this.getBoard(newSlug);
       if (existingBoard) {
         // Find a unique name by adding numbers
         let counter = 2;
         while (true) {
-          const testTitle = `${title} ${counter}`;
-          const testSlug = this.generateSlug(testTitle);
+          const testTitle = `${boardData.title} ${counter}`;
+          const testSlug = generateSlug(testTitle);
           const testBoard = await this.getBoard(testSlug);
           if (!testBoard) {
             finalTitle = testTitle;
@@ -60,33 +53,38 @@ class StorageManager {
     }
     
     // If slug changed and we're updating an existing board, delete old record
-    if (currentId && currentId !== newSlug) {
-      await this.deleteBoard(currentId);
+    if (boardData.id && boardData.id !== newSlug) {
+      await this.deleteBoard(boardData.id);
     }
 
     // Ensure cards are plain objects that can be cloned
-    const serializableCards = cards.map(card => ({
+    const serializableCards = boardData.cards.map(card => ({
       id: card.id,
       content: card.content,
       columnId: card.columnId,
       isNew: card.isNew || false
     }));
 
-    const boardData: BoardData = {
+    const serializableBoard: BoardData = {
       id: newSlug,
       title: finalTitle,
       cards: serializableCards,
       lastModified: new Date(),
-      focusedCardId
+      focusedCardId: boardData.focusedCardId
     };
 
     return new Promise((resolve, reject) => {
       const transaction = this.db!.transaction(['boards'], 'readwrite');
       const store = transaction.objectStore('boards');
-      const request = store.put(boardData);
+      const request = store.put(serializableBoard);
       
       request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve(newSlug);
+      request.onsuccess = () => {
+        if (boardData.title !== finalTitle) {
+            console.warn(`Board title changed from "${boardData.title}" to "${finalTitle}" due to slug conflict.`);
+        }
+        resolve(newSlug);
+      }
     });
   }
 
@@ -134,25 +132,6 @@ class StorageManager {
     });
   }
 
-  // Migration from localStorage (called once on app start)
-  async migrateFromLocalStorage(): Promise<void> {
-    const oldData = localStorage.getItem('kanbanData');
-    if (oldData) {
-      try {
-        const parsed = JSON.parse(oldData);
-        const title = parsed.title || 'Kanban Board';
-        const cards = parsed.cards || [];
-        
-        // Save as new board
-        await this.saveBoard(title, cards);
-        
-        // Remove old localStorage data
-        localStorage.removeItem('kanbanData');
-      } catch (e) {
-        console.error('Failed to migrate from localStorage:', e);
-      }
-    }
-  }
 }
 
 export const storage = new StorageManager();

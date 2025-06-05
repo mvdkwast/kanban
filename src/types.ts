@@ -19,7 +19,7 @@ export interface CardPosition {
 }
 
 export interface BoardData {
-  id: string; // URL slug
+  id: string | null; // URL slug
   title: string;
   cards: Card[];
   lastModified: Date;

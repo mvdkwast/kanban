@@ -1,34 +1,37 @@
-import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
-import type { BoardData } from '../types';
-import { storage } from '../services/storage';
-import { useRouter } from '../services/router';
+import {defineStore} from 'pinia';
+import {computed, ref} from 'vue';
+import {watchDebounced} from '@vueuse/core';
+import type {BoardData, Card} from '../types';
+import {storage} from '../services/storage';
 
 export const useBoardStore = defineStore('board', () => {
-  const { navigate } = useRouter();
   
   // State
   const boards = ref<BoardData[]>([]);
   const currentBoardId = ref<string>('');
-  const isInitialized = ref(false);
+  const isInitialized = ref(false); // storage is initialized and boards are loaded
   const isLoadingBoard = ref(false);
 
   // Getters
-  const currentBoard = computed(() => 
-    boards.value.find(board => board.id === currentBoardId.value)
+  const currentBoardData = computed(() => 
+    boards.value.find(board => board.id === currentBoardId.value) || null
   );
 
   const hasMultipleBoards = computed(() => boards.value.length > 1);
 
-  // Actions
+  // Pending save data for debounced persistence
+  const pendingSaveData = ref<BoardData | null>(null);
+  
+  // Track when we're auto-saving to prevent reinitializing kanban store
+  const isAutoSaving = ref(false);
+
   const initializeStorage = async () => {
     try {
       await storage.init();
-      await storage.migrateFromLocalStorage();
-      
+
       const allBoards = await storage.getAllBoards();
       boards.value = allBoards;
-      
+
       isInitialized.value = true;
       return allBoards;
     } catch (error) {
@@ -38,37 +41,35 @@ export const useBoardStore = defineStore('board', () => {
     }
   };
 
-  const loadBoard = async (boardId: string): Promise<BoardData | null> => {
-    console.log('loadBoard called with:', boardId);
+  // Actions
+
+  /**
+   * Set current board ID
+   */
+  const setCurrentBoard = async (boardId: string): Promise<BoardData | null> => {
+    console.log('setCurrentBoard called with:', boardId);
     console.log('Current isLoadingBoard:', isLoadingBoard.value);
-    
+
     if (isLoadingBoard.value) {
       console.log('Already loading board, returning null');
       return null;
     }
-    
+
     isLoadingBoard.value = true;
-    
+
     try {
       console.log('Fetching board data from storage...');
       const boardData = await storage.getBoard(boardId);
       console.log('Board data retrieved:', boardData);
-      
+
       if (boardData) {
         console.log('Setting currentBoardId from', currentBoardId.value, 'to', boardData.id);
-        currentBoardId.value = boardData.id;
+        currentBoardId.value = boardData.id!;
         return boardData;
       } else {
-        console.log('Board not found, redirecting to first available board');
-        // Board not found, redirect to first available board
-        const allBoards = await storage.getAllBoards();
-        if (allBoards.length > 0) {
-          console.log('Navigating to first available board:', allBoards[0].id);
-          navigate(allBoards[0].id);
-          return allBoards[0];
-        }
+        console.log('Board not found, returning null for MainView to handle');
+        return null;
       }
-      return null;
     } catch (error) {
       console.error('Failed to load board:', error);
       return null;
@@ -78,50 +79,96 @@ export const useBoardStore = defineStore('board', () => {
     }
   };
 
-  const saveBoard = async (title: string, cards: any[], focusedCardId?: string): Promise<string> => {
+  /**
+   * Save current board data with debounced persistence
+   */
+  const saveCurrentBoard = () => {
+    if (!currentBoardData.value) {
+        console.warn('No current board data to save');
+        return;
+    }
+
+    pendingSaveData.value = JSON.parse(JSON.stringify(currentBoardData.value));
+  };
+
+  // Debounced auto-save when board content changes
+  watchDebounced(pendingSaveData, async (boardData: BoardData | null) => {
+    if (boardData && isInitialized.value && !isLoadingBoard.value) {
+      try {
+        isAutoSaving.value = true;
+        console.log('Auto-saving board:', boardData.title, 'with', boardData.cards.length, 'cards');
+        await saveBoard(boardData);
+      } catch (error) {
+        console.error('Failed to auto-save board:', error);
+      } finally {
+        isAutoSaving.value = false;
+      }
+    }
+  }, {
+    debounce: 300,
+    deep: true
+  });
+
+  const setBoardData = async(boardData: BoardData): Promise<void> => {
+    console.log('setBoardData called with:', boardData.id, boardData.title, boardData.cards.length, boardData.focusedCardId);
+
+    if (isLoadingBoard.value) {
+      console.log('Already loading board, cannot replace');
+      return;
+    }
+
+    isLoadingBoard.value = true;
+
     try {
-      const newBoardId = await storage.saveBoard(title, cards, currentBoardId.value, focusedCardId);
-      
-      // Update URL if board slug changed
-      if (newBoardId !== currentBoardId.value) {
-        currentBoardId.value = newBoardId;
-        navigate(newBoardId);
+      await saveBoard(boardData);
+    } catch (error) {
+      console.error('Failed to replace board:', error);
+      throw error;
+    } finally {
+      isLoadingBoard.value = false;
+    }
+  }
+
+  const saveBoard = async (boardData: BoardData): Promise<string> => {
+    try {
+      const newBoardId = await storage.saveBoard(boardData);
+
+      if (boardData.id === null) {
+        // This is a new board, add it to the boards list
+        console.log('Adding new board to boards list:', newBoardId);
+        boards.value.push({
+          ...boardData,
+          id: newBoardId,
+          lastModified: new Date()
+        });
       }
-      
-      // Refresh boards list
-      if (!isLoadingBoard.value) {
-        boards.value = await storage.getAllBoards();
+      else if (newBoardId !== boardData.id) {
+        // update id in boards list
+        boards.value.find(b => b.id === boardData.id)!.id = newBoardId;
+
+        // if current board is the one being saved, update currentBoardId
+        if (currentBoardId.value === boardData.id) {
+          console.log('Updating currentBoardId to new ID:', newBoardId);
+          currentBoardId.value = newBoardId;
+        }
       }
-      
+
       return newBoardId;
+
     } catch (error) {
       console.error('Failed to save board:', error);
       throw error;
     }
   };
 
-  const createNewBoard = async (): Promise<string> => {
-    console.log('Creating new board...');
-    
-    try {
-      // Create the board without setting isLoadingBoard
-      const newBoardId = await storage.saveBoard('New Board', []);
-      
-      console.log('New board created with ID:', newBoardId);
-      
-      // Refresh boards list
-      boards.value = await storage.getAllBoards();
-      console.log('Refreshed boards list, count:', boards.value.length);
-      
-      // Navigate to the new board - this will trigger the route watcher
-      navigate(newBoardId);
-      console.log('Navigated to new board');
-      
-      return newBoardId;
-    } catch (error) {
-      console.error('Failed to create new board:', error);
-      throw error;
-    }
+  const createNewBoard = async (title: string = 'New Board', cards: Card[] = []): Promise<string> => {
+    console.log(`Creating new board with title: ${title}, cards count: ${cards.length}`);
+    return saveBoard({
+      id: null, // New board, no ID yet
+      title,
+      cards,
+      lastModified: new Date()
+    });
   };
 
   const deleteBoard = async (boardId: string): Promise<void> => {
@@ -134,15 +181,15 @@ export const useBoardStore = defineStore('board', () => {
       // Refresh boards list
       boards.value = await storage.getAllBoards();
       
-      // If we deleted the current board, switch to the most recent one
+      // If we deleted the current board, set to the most recent one
       if (boardId === currentBoardId.value) {
         if (boards.value.length > 0) {
-          navigate(boards.value[0].id);
+          currentBoardId.value = boards.value[0].id!;
         } else {
           // No boards left, create a new default one
-          const newBoardId = await storage.saveBoard('Kanban Board', []);
+          const newBoardId = await createNewBoard();
           boards.value = await storage.getAllBoards();
-          navigate(newBoardId);
+          currentBoardId.value = newBoardId;
         }
       }
     } catch (error) {
@@ -153,22 +200,22 @@ export const useBoardStore = defineStore('board', () => {
     }
   };
 
-  const switchToBoard = (boardId: string) => {
-    navigate(boardId);
-  };
-
-  const getNextBoard = (): string | null => {
+  const switchToNextBoard = () => {
     if (boards.value.length <= 1) return null;
     const currentIndex = boards.value.findIndex(b => b.id === currentBoardId.value);
     const nextIndex = (currentIndex + 1) % boards.value.length;
-    return boards.value[nextIndex].id;
+    currentBoardId.value = boards.value[nextIndex].id!;
   };
 
-  const getPrevBoard = (): string | null => {
+  const switchToPreviousBoard = () => {
     if (boards.value.length <= 1) return null;
     const currentIndex = boards.value.findIndex(b => b.id === currentBoardId.value);
     const prevIndex = (currentIndex - 1 + boards.value.length) % boards.value.length;
-    return boards.value[prevIndex].id;
+    currentBoardId.value = boards.value[prevIndex].id!;
+  };
+
+  const refreshBoards = async () => {
+    boards.value = await storage.getAllBoards();
   };
 
   return {
@@ -177,19 +224,25 @@ export const useBoardStore = defineStore('board', () => {
     currentBoardId,
     isInitialized,
     isLoadingBoard,
+    isAutoSaving,
     
     // Getters
-    currentBoard,
+    currentBoardData,
     hasMultipleBoards,
     
     // Actions
     initializeStorage,
-    loadBoard,
+
+    setCurrentBoard,
+    switchToNextBoard,
+    switchToPreviousBoard,
+
+    saveCurrentBoard,
     saveBoard,
     createNewBoard,
     deleteBoard,
-    switchToBoard,
-    getNextBoard,
-    getPrevBoard,
+    setBoardData,
+
+    refreshBoards,
   };
 });

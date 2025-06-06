@@ -47,9 +47,6 @@ export const useBoardStore = defineStore('board', () => {
    * Set current board ID
    */
   const setCurrentBoard = async (boardId: string): Promise<BoardData | null> => {
-    console.log('setCurrentBoard called with:', boardId);
-    console.log('Current isLoadingBoard:', isLoadingBoard.value);
-
     if (isLoadingBoard.value) {
       console.log('Already loading board, returning null');
       return null;
@@ -58,16 +55,12 @@ export const useBoardStore = defineStore('board', () => {
     isLoadingBoard.value = true;
 
     try {
-      console.log('Fetching board data from storage...');
       const boardData = await storage.getBoard(boardId);
-      console.log('Board data retrieved:', boardData);
 
       if (boardData) {
-        console.log('Setting currentBoardId from', currentBoardId.value, 'to', boardData.id);
         currentBoardId.value = boardData.id!;
         return boardData;
       } else {
-        console.log('Board not found, returning null for MainView to handle');
         return null;
       }
     } catch (error) {
@@ -75,7 +68,6 @@ export const useBoardStore = defineStore('board', () => {
       return null;
     } finally {
       isLoadingBoard.value = false;
-      console.log('loadBoard finished, isLoadingBoard:', isLoadingBoard.value);
     }
   };
 
@@ -96,7 +88,6 @@ export const useBoardStore = defineStore('board', () => {
     if (boardData && isInitialized.value && !isLoadingBoard.value) {
       try {
         isAutoSaving.value = true;
-        console.log('Auto-saving board:', boardData.title, 'with', boardData.cards.length, 'cards');
         await saveBoard(boardData);
       } catch (error) {
         console.error('Failed to auto-save board:', error);
@@ -110,8 +101,6 @@ export const useBoardStore = defineStore('board', () => {
   });
 
   const setBoardData = async(boardData: BoardData): Promise<void> => {
-    console.log('setBoardData called with:', boardData.id, boardData.title, boardData.cards.length, boardData.focusedCardId);
-
     if (isLoadingBoard.value) {
       console.log('Already loading board, cannot replace');
       return;
@@ -162,7 +151,6 @@ export const useBoardStore = defineStore('board', () => {
   };
 
   const createNewBoard = async (title: string = 'New Board', cards: Card[] = []): Promise<string> => {
-    console.log(`Creating new board with title: ${title}, cards count: ${cards.length}`);
     return saveBoard({
       id: null, // New board, no ID yet
       title,

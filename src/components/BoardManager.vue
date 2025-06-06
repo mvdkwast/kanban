@@ -58,7 +58,6 @@ const localTitle = ref(props.title);
 // Only watch for external title changes, don't create circular updates
 watch(() => props.title, (newTitle) => {
   if (newTitle !== localTitle.value) {
-    console.log('BoardManager received title update:', newTitle);
     localTitle.value = newTitle;
   }
 });
@@ -66,7 +65,6 @@ watch(() => props.title, (newTitle) => {
 // Emit title changes but prevent circular updates
 const updateTitle = (newTitle: string) => {
   if (newTitle !== props.title) {
-    console.log('BoardManager emitting title update:', newTitle);
     emit('update:title', newTitle);
   }
 };

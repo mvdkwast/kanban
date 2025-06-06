@@ -13,26 +13,24 @@ test.describe('Tag Selection - Basic Setup', () => {
     // First, let's see if there are any + buttons
     const addButtons = page.locator('text=+');
     const addButtonCount = await addButtons.count();
-    console.log('Add buttons found:', addButtonCount);
-    
+
     if (addButtonCount > 0) {
       // Use the + button method
       await addButtons.first().click();
-      
+
       // Check if we're in editing mode
       const editingCards = await page.locator('[data-editing="true"]').count();
       console.log('Cards in editing mode after + click:', editingCards);
-      
+
       if (editingCards > 0) {
         await page.keyboard.type('#bug Fix login issue');
         await page.keyboard.press('Enter'); // Use Enter to save new cards
-        
+
         // Wait for save to complete
         await page.waitForTimeout(200);
-        
+
         // Verify card was created
         const cardCount = await page.locator('[data-testid^="card-"]').count();
-        console.log('Cards after creation:', cardCount);
         expect(cardCount).toBe(1);
         
         // Verify tag selector appears
@@ -47,8 +45,7 @@ test.describe('Tag Selection - Basic Setup', () => {
       // Wait and check for editing mode
       await page.waitForTimeout(500);
       const editingCards = await page.locator('[data-editing="true"]').count();
-      console.log('Cards in editing mode after double-click:', editingCards);
-      
+
       if (editingCards > 0) {
         await page.keyboard.type('#test This is a test');
         await page.keyboard.press('Enter'); // Use Enter to save new cards
@@ -60,7 +57,6 @@ test.describe('Tag Selection - Basic Setup', () => {
         await expect(page.locator('[data-testid="tag-selector"]')).toBeVisible();
         await expect(page.locator('[data-testid="tag-test"]')).toBeVisible();
       } else {
-        console.log('Neither + button nor double-click worked');
         // Take a screenshot for debugging
         await page.screenshot({ path: 'card-creation-failed.png' });
       }

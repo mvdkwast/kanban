@@ -235,19 +235,15 @@ onMounted(async () => {
 const setupStoreOrchestration = () => {
   // Watch route changes → update current board ID
   watch(currentPath, async (newPath) => {
-    console.log('Route changed to:', newPath);
-
     if (!boardStore.isInitialized) {
-      console.log('Skipping route change - not initialized');
+      console.warn('Skipping route change - not initialized');
       return;
     }
 
     if (newPath === boardStore.currentBoardId) {
-      console.log('Skipping route change - already on this board');
       return;
     }
 
-    console.log('Setting current board ID:', newPath);
     await boardStore.setCurrentBoard(newPath);
   });
 
@@ -260,11 +256,9 @@ const setupStoreOrchestration = () => {
     }
 
     if (newBoardData) {
-      console.log('Board data changed, initializing kanban store:', newBoardData.title);
       kanbanStore.initializeBoard(newBoardData.title, newBoardData.cards || [], newBoardData.focusedCardId);
     } else if (boardStore.currentBoardId) {
       // Board data not found, try to load it
-      console.log('Board data not found, loading board:', boardStore.currentBoardId);
       const boardData = await boardStore.setCurrentBoard(boardStore.currentBoardId);
       if (!boardData) {
         // Board doesn't exist, redirect to first available board
@@ -279,7 +273,6 @@ const setupStoreOrchestration = () => {
 
   // Listen to kanban store changes → save to board store
   emitter.on('board:changed', (boardData: BoardData) => {
-    console.log('Board changed, saving to board store:', boardData.title);
     boardStore.setBoardData({
       ...boardData,
       id: boardStore.currentBoardId,
@@ -293,9 +286,7 @@ const setupStoreOrchestration = () => {
 
 // Event handlers
 const handleNewBoard = async () => {
-  console.log('handleNewBoard called');
   const newBoardId = await boardStore.createNewBoard();
-  console.log('New board created, ID:', newBoardId);
 
   if (newBoardId) {
     // Navigate to the new board
@@ -304,7 +295,6 @@ const handleNewBoard = async () => {
 
     // Wait for UI to update then focus title
     setTimeout(() => {
-      console.log('Attempting to focus title...');
       boardManagerRef.value?.focusTitle();
     }, 200);
   }
@@ -330,18 +320,14 @@ const handleClearFilters = () => {
 };
 
 const handleAddCard = (columnId: string, beforeIndex?: number | null) => {
-  console.log('Adding card to column:', columnId, 'at index:', beforeIndex);
   kanbanStore.addCard(columnId, beforeIndex);
 };
 
 const handleFocusCard = (cardId: string) => {
-  console.log('Focusing card:', cardId);
   kanbanStore.focusCard(cardId);
 };
 
 const handleUpdateCard = (cardId: string, content: string) => {
-  console.log('Updating card:', cardId, 'with content:', content);
-
   // Check visibility before update
   const wasVisible = kanbanStore.visibleCards.some(c => c.id === cardId);
 
@@ -360,12 +346,10 @@ const handleUpdateCard = (cardId: string, content: string) => {
 };
 
 const handleDeleteCard = (cardId: string) => {
-  console.log('Deleting card:', cardId);
   kanbanStore.deleteCard(cardId);
 };
 
 const handleClearColumn = (columnId: string) => {
-  console.log('Clearing column:', columnId);
   kanbanStore.clearColumn(columnId);
 };
 

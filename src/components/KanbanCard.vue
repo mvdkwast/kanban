@@ -179,8 +179,6 @@ watch(() => props.card.id, () => {
 let observer: ResizeObserver | null = null;
 
 onMounted(() => {
-  console.log('KanbanCard mounted:', props.card);
-
   // Report initial position after a small delay to ensure layout is complete
   nextTick(() => {
     setTimeout(() => {

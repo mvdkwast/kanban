@@ -54,7 +54,6 @@ export const useKanbanStore = defineStore('kanban', () => {
       const tempCard = cards.value.find(c => c.id === temporaryVisibleCardId.value);
       if (tempCard && !filtered.some(c => c.id === temporaryVisibleCardId.value)) {
         filtered.push(tempCard);
-        console.log('Added temporary card to visible cards:', tempCard);
       }
     }
 
@@ -67,8 +66,6 @@ export const useKanbanStore = defineStore('kanban', () => {
 
   // Actions
   const initializeBoard = (title: string, boardCards: Card[], savedFocusedCardId?: string) => {
-    console.log('initializeBoard called with:', { title, cardCount: boardCards.length, savedFocusedCardId });
-    
     boardTitle.value = title;
     cards.value = boardCards || [];
     temporaryVisibleCardId.value = null;
@@ -110,8 +107,6 @@ export const useKanbanStore = defineStore('kanban', () => {
   };
 
   const addCard = (columnId: string, beforeIndex: number | null = null) => {
-    console.log('addCard called with:', { columnId, beforeIndex, selectedTags: selectedTags.value });
-    
     const initialContent = selectedTags.value.length > 0
       ? '\n' + selectedTags.value.join(' ')
       : 'New task';
@@ -125,9 +120,6 @@ export const useKanbanStore = defineStore('kanban', () => {
 
     const insertIndex = beforeIndex !== null ? beforeIndex : cards.value.length;
     cards.value.splice(insertIndex, 0, newCard);
-
-    console.log('Card added:', newCard);
-    console.log('Total cards after add:', cards.value.length);
 
     temporaryVisibleCardId.value = newCard.id;
     focusedCardId.value = newCard.id;
@@ -249,8 +241,7 @@ export const useKanbanStore = defineStore('kanban', () => {
 
     // check if column is not empty after we're moving the card (at this time the card is still in the current column)
     if (cardsInCurrentColumn.length > 1) {
-      console.log(`Current column "${currentColumnId}" has ${cardsInCurrentColumn.length} cards. Current card index: ${currentCardIndex}`);
-      if (currentCardIndex < cardsInCurrentColumn.length - 2) {
+ if (currentCardIndex < cardsInCurrentColumn.length - 2) {
         // Try to focus the card to the card after the current one
         nextCardId = cardsInCurrentColumn[currentCardIndex + 1].id;
       }

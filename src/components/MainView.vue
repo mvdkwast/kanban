@@ -78,6 +78,7 @@
           :columns="kanbanStore.columns"
           :visible-cards="kanbanStore.visibleCards"
           :focused-card-id="kanbanStore.focusedCardId"
+          :selected-card-ids="kanbanStore.selectedCardIds"
           @add-card="handleAddCard"
           @focus-card="handleFocusCard"
           @update-card="handleUpdateCard"
@@ -85,6 +86,7 @@
           @drop-card="handleDropCard"
           @clear-column="handleClearColumn"
           @report-card-position="handleReportCardPosition"
+          @select-card="handleSelectCard"
       />
 
       <!-- Debug info -->
@@ -97,6 +99,7 @@
               <div>Board title: "{{ kanbanStore.boardTitle }}"</div>
               <div>Total cards: {{ kanbanStore.cards.length }}</div>
               <div>Visible cards: {{ kanbanStore.visibleCards.length }}</div>
+              <div>Selected cards: {{ kanbanStore.selectedCardIds.length > 0 ? kanbanStore.selectedCardIds.join(', ') : 'none' }}</div>
               <div>Selected tags: {{ filterSelectedTags }}</div>
               <div>Search text: "{{ filterSearchText }}"</div>
               <div>Focused card: {{ kanbanStore.focusedCardId }}</div>
@@ -357,17 +360,43 @@ const handleReportCardPosition = (id: string, pos: any) => {
   kanbanStore.reportCardPosition(id, pos);
 };
 
+const handleSelectCard = (cardId: string, ctrlKey: boolean) => {
+  kanbanStore.toggleCardSelection(cardId, ctrlKey);
+};
+
 const handleDropCard = (cardId: string, _sourceColumnId: string, targetColumnId: string, targetCardId?: string | null) => {
+  // Check if this is a multi-drag operation
+  const isMultiDrag = (window as any).__isMultiDrag;
+  const selectedCardIds = (window as any).__selectedCardIds || [cardId];
+
   // Special case for delete column
   if (targetColumnId === 'delete') {
-    if (confirm('Are you sure you want to delete this card?')) {
-      kanbanStore.deleteCard(cardId);
+    if (isMultiDrag) {
+      if (confirm(`Are you sure you want to delete ${selectedCardIds.length} cards?`)) {
+        selectedCardIds.forEach(id => kanbanStore.deleteCard(id));
+      }
+    } else {
+      if (confirm('Are you sure you want to delete this card?')) {
+        kanbanStore.deleteCard(cardId);
+      }
     }
     return;
   }
 
-  kanbanStore.moveCard(cardId, targetColumnId, targetCardId);
-  kanbanStore.focusCard(cardId);
+  // Handle multi-card move
+  if (isMultiDrag) {
+    // Move all selected cards to the target column
+    selectedCardIds.forEach(id => {
+      kanbanStore.moveCard(id, targetColumnId, targetCardId);
+    });
+
+    // Focus the primary dragged card
+    kanbanStore.focusCard(cardId);
+  } else {
+    // Single card move
+    kanbanStore.moveCard(cardId, targetColumnId, targetCardId);
+    kanbanStore.focusCard(cardId);
+  }
 };
 
 const handleExportClick = () => {

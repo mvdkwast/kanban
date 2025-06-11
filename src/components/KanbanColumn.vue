@@ -64,11 +64,13 @@
               :card="card"
               :column-id="column.id"
               :is-focused="focusedCardId === card.id"
+              :is-selected="props.selectedCardIds?.includes(card.id) || false"
               @focus="handleFocusCard"
               @update="handleUpdateCard"
               @delete="handleDeleteCard"
               @report-position="handleReportPosition"
               @drop="handleCardDrop"
+              @select="handleSelectCard"
           />
         </div>
       </template>
@@ -88,6 +90,7 @@ interface Props {
   cards: Card[];
   focusedCardId: string | null;
   isLast: boolean;
+  selectedCardIds?: string[];
 }
 
 interface Emits {
@@ -104,6 +107,8 @@ interface Emits {
   (e: 'clearColumn', columnId: string): void;
 
   (e: 'reportCardPosition', id: string, pos: any): void;
+
+  (e: 'selectCard', cardId: string, ctrlKey: boolean): void;
 }
 
 const props = defineProps<Props>();
@@ -134,6 +139,10 @@ const handleDeleteCard = (cardId: string) => {
 
 const handleReportPosition = (id: string, pos: any) => {
   emit('reportCardPosition', id, pos);
+};
+
+const handleSelectCard = (cardId: string, ctrlKey: boolean) => {
+  emit('selectCard', cardId, ctrlKey);
 };
 
 const handleDoubleClick = (e: MouseEvent) => {

@@ -6,6 +6,7 @@
         :column="column"
         :cards="getColumnCards(column.id)"
         :focused-card-id="focusedCardId"
+        :selected-card-ids="selectedCardIds"
         :is-last="i === columns.length - 1"
         @add-card="handleAddCard"
         @focus-card="handleFocusCard"
@@ -14,6 +15,7 @@
         @drop-card="handleDropCard"
         @clear-column="handleClearColumn"
         @report-card-position="handleReportCardPosition"
+        @select-card="handleSelectCard"
     />
   </div>
 </template>
@@ -27,6 +29,7 @@ interface Props {
   columns: Column[];
   visibleCards: Card[];
   focusedCardId: string | null;
+  selectedCardIds?: string[];
 }
 
 interface Emits {
@@ -37,6 +40,7 @@ interface Emits {
   (e: 'dropCard', cardId: string, sourceColumnId: string, targetColumnId: string, targetCardId?: string | null): void;
   (e: 'clearColumn', columnId: string): void;
   (e: 'reportCardPosition', id: string, pos: any): void;
+  (e: 'selectCard', cardId: string, ctrlKey: boolean): void;
 }
 
 const props = defineProps<Props>();
@@ -75,11 +79,15 @@ const handleReportCardPosition = (id: string, pos: any) => {
   emit('reportCardPosition', id, pos);
 };
 
+const handleSelectCard = (cardId: string, ctrlKey: boolean) => {
+  emit('selectCard', cardId, ctrlKey);
+};
+
 // Watch for changes in visible cards and request position updates
 watch(() => props.visibleCards.map(c => c.id).join(','), async () => {
   // Wait for DOM updates
   await nextTick();
-  
+
   // Trigger a re-render to update positions
   setTimeout(() => {
     // Force position reporting by dispatching a custom event

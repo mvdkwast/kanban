@@ -22,6 +22,7 @@
       class="bg-gray-800 outline-none rounded-lg p-3 cursor-move transition-all duration-200 select-none"
       :class="[
         isFocused ? 'ring-2 ring-blue-500 focused-card' : '',
+        isSelected ? 'ring-2 ring-green-500 selected-card' : '',
         isDragging ? 'opacity-50' : '',
       ]"
       :tabindex="isFocused ? 0 : -1"
@@ -30,6 +31,7 @@
       :data-card-id="card.id"
       :data-focused="isFocused"
       :data-editing="isEditing"
+      :data-selected="isSelected"
       @click="handleCardClick"
       @dblclick="handleCardDoubleClick"
       @keydown="handleCardKeyDown"
@@ -70,11 +72,13 @@ import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { extractTags, getTagColor, processContent } from '../utils';
 import type { Card, CardPosition } from '../types';
 import { processMarkdown } from '../util/markdown';
+import { useKanbanStore } from '../stores/useKanbanStore';
 
 interface Props {
   card: Card;
   columnId: string;
   isFocused: boolean;
+  isSelected?: boolean;
 }
 
 interface Emits {
@@ -83,6 +87,7 @@ interface Emits {
   (e: 'delete', cardId: string): void;
   (e: 'reportPosition', id: string, pos: CardPosition): void;
   (e: 'drop', draggedCardId: string, sourceColumnId: string, targetColumnId: string, targetCardId: string): void;
+  (e: 'select', cardId: string, ctrlKey: boolean): void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -120,7 +125,7 @@ onMounted(() => {
     }
   };
   document.addEventListener('edit-card', handleEditEvent as EventListener);
-  
+
   onUnmounted(() => {
     document.removeEventListener('edit-card', handleEditEvent as EventListener);
   });
@@ -238,7 +243,11 @@ const handleCardClick = (e: MouseEvent) => {
       emit('delete', props.card.id);
     }
   } else {
+    // Always focus the card
     emit('focus', props.card.id);
+
+    // Handle selection with ctrl key for multi-select
+    emit('select', props.card.id, e.ctrlKey);
   }
 };
 
@@ -263,15 +272,28 @@ const handleCardKeyDown = (e: KeyboardEvent) => {
 // Drag and drop handlers
 const handleDragStart = (e: DragEvent) => {
   if (!e.dataTransfer) return;
-  
+
   isDragging.value = true;
   e.dataTransfer.effectAllowed = 'move';
   e.dataTransfer.setData('cardId', props.card.id);
   e.dataTransfer.setData('sourceColumnId', props.columnId);
-  
+
   // Store globally for cross-component access
   (window as any).__draggedCardId = props.card.id;
   (window as any).__sourceColumnId = props.columnId;
+
+  // Get the selected card IDs from the store
+  // We need to import the store directly here to access the selectedCardIds
+  const kanbanStore = useKanbanStore();
+
+  // If this card is selected and there are other selected cards, store them for multi-drag
+  if (props.isSelected && kanbanStore.selectedCardIds.length > 1) {
+    (window as any).__isMultiDrag = true;
+    (window as any).__selectedCardIds = [...kanbanStore.selectedCardIds];
+  } else {
+    (window as any).__isMultiDrag = false;
+    (window as any).__selectedCardIds = [props.card.id];
+  }
 };
 
 const handleDragEnd = () => {
@@ -279,7 +301,9 @@ const handleDragEnd = () => {
   // Clean up global state
   delete (window as any).__draggedCardId;
   delete (window as any).__sourceColumnId;
-  
+  delete (window as any).__isMultiDrag;
+  delete (window as any).__selectedCardIds;
+
   // Dispatch event to clean up any stuck drag states
   window.dispatchEvent(new CustomEvent('drag-ended'));
 };
@@ -309,12 +333,12 @@ const handleDragLeave = (e: DragEvent) => {
 const handleDrop = (e: DragEvent) => {
   e.preventDefault();
   e.stopPropagation();
-  
+
   isDragOver.value = false;
-  
+
   const draggedCardId = (window as any).__draggedCardId;
   const sourceColumnId = (window as any).__sourceColumnId;
-  
+
   if (draggedCardId && draggedCardId !== props.card.id) {
     emit('drop', draggedCardId, sourceColumnId, props.columnId, props.card.id);
   }

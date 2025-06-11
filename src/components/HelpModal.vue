@@ -38,6 +38,17 @@
               </ul>
             </div>
 
+            <!-- Card Selection -->
+            <div>
+              <h2 class="text-lg font-semibold mb-3 text-pink-400">Card Selection</h2>
+              <ul class="space-y-2 text-sm">
+                <li><kbd class="bg-gray-700 px-2 py-1 rounded text-xs">Ctrl+Space</kbd> Toggle selection of focused card</li>
+                <li><kbd class="bg-gray-700 px-2 py-1 rounded text-xs">Shift+↑↓</kbd> Extend selection vertically</li>
+                <li><kbd class="bg-gray-700 px-2 py-1 rounded text-xs">Shift+←→</kbd> Extend selection horizontally</li>
+                <li><kbd class="bg-gray-700 px-2 py-1 rounded text-xs">Ctrl+Click</kbd> Toggle card selection with mouse</li>
+              </ul>
+            </div>
+
             <!-- Card Actions -->
             <div>
               <h2 class="text-lg font-semibold mb-3 text-green-400">Card Actions</h2>
@@ -57,12 +68,12 @@
             <div>
               <h2 class="text-lg font-semibold mb-3 text-yellow-400">Moving Cards</h2>
               <ul class="space-y-2 text-sm">
-                <li><kbd class="bg-gray-700 px-2 py-1 rounded text-xs">Ctrl+↑</kbd> Move card up in column</li>
-                <li><kbd class="bg-gray-700 px-2 py-1 rounded text-xs">Ctrl+↓</kbd> Move card down in column</li>
-                <li><kbd class="bg-gray-700 px-2 py-1 rounded text-xs">Ctrl+←</kbd> Move card to left column</li>
-                <li><kbd class="bg-gray-700 px-2 py-1 rounded text-xs">Ctrl+→</kbd> Move card to right column</li>
-                <li><kbd class="bg-gray-700 px-2 py-1 rounded text-xs">Ctrl+Home</kbd> Move card to top of column</li>
-                <li><kbd class="bg-gray-700 px-2 py-1 rounded text-xs">Ctrl+End</kbd> Move card to bottom of column</li>
+                <li><kbd class="bg-gray-700 px-2 py-1 rounded text-xs">Ctrl+↑</kbd> Move selected card(s) up in column</li>
+                <li><kbd class="bg-gray-700 px-2 py-1 rounded text-xs">Ctrl+↓</kbd> Move selected card(s) down in column</li>
+                <li><kbd class="bg-gray-700 px-2 py-1 rounded text-xs">Ctrl+←</kbd> Move selected card(s) to left column</li>
+                <li><kbd class="bg-gray-700 px-2 py-1 rounded text-xs">Ctrl+→</kbd> Move selected card(s) to right column</li>
+                <li><kbd class="bg-gray-700 px-2 py-1 rounded text-xs">Ctrl+Home</kbd> Move selected card(s) to top of column</li>
+                <li><kbd class="bg-gray-700 px-2 py-1 rounded text-xs">Ctrl+End</kbd> Move selected card(s) to bottom of column</li>
               </ul>
             </div>
 
@@ -106,7 +117,7 @@
           </div>
 
           <div class="mt-6 pt-4 border-t border-gray-600 text-center text-sm text-gray-400">
-            <p>Drag and drop cards between columns • Use # for tags in card content • Type after # to filter tags quickly</p>
+            <p>Drag and drop cards between columns • Select multiple cards with Ctrl+Space or Shift+arrows • Use # for tags in card content • Type after # to filter tags quickly</p>
           </div>
         </div>
       </div>

@@ -7,7 +7,7 @@ import { emitter } from '../services/events';
 
 export const useKanbanStore = defineStore('kanban', () => {
   const {searchText, selectedTags} = useFilter();
-  
+
   // Define columns
   const columns: Column[] = [
     { id: 'idea', title: 'idea' },
@@ -23,6 +23,7 @@ export const useKanbanStore = defineStore('kanban', () => {
   const focusedCardId = ref<string | null>(null);
   const temporaryVisibleCardId = ref<string | null>(null);
   const cardPositions = ref<Record<string, CardPosition>>({});
+  const selectedCardIds = ref<string[]>([]);
 
   // Getters
   const allTags = computed(() => TaskManager.getAllTags(cards.value));
@@ -70,13 +71,13 @@ export const useKanbanStore = defineStore('kanban', () => {
     cards.value = boardCards || [];
     temporaryVisibleCardId.value = null;
     cardPositions.value = {};
-    
+
     // Reset filters when switching boards
     emitter.emit('filter:reset');
-    
+
     // Reset scroll to top first
     window.scrollTo(0, 0);
-    
+
     // Set focused card from saved state or find the best card to focus
     if (savedFocusedCardId && cards.value.some(c => c.id === savedFocusedCardId)) {
       focusedCardId.value = savedFocusedCardId;
@@ -96,13 +97,13 @@ export const useKanbanStore = defineStore('kanban', () => {
         focusedCardId.value = null;
       }
     }
-    
+
     // Scroll to focused card after DOM updates
     if (focusedCardId.value) {
       // long than usual delay to ensure DOM is fully rendered
       TaskManager.bringCardIntoView(focusedCardId.value, 100);
     }
-    
+
     console.log('Board initialized. Cards in store:', cards.value.length, 'Focused card:', focusedCardId.value);
   };
 
@@ -146,7 +147,7 @@ export const useKanbanStore = defineStore('kanban', () => {
 
     // Remove the card
     cards.value = cards.value.filter(c => c.id !== cardId);
-    
+
     // Clear temporary visibility if this was the temporary card
     if (temporaryVisibleCardId.value === cardId) {
       temporaryVisibleCardId.value = null;
@@ -163,13 +164,13 @@ export const useKanbanStore = defineStore('kanban', () => {
   const wouldMoveCard = (cardId: string, targetColumnId: string, targetCardId: string | null = null): boolean => {
     const card = cards.value.find(c => c.id === cardId);
     if (!card) return false;
-    
+
     // Different column = definitely a move
     if (card.columnId !== targetColumnId) return true;
-    
+
     // Same column, check position
     const cardIndex = cards.value.findIndex(c => c.id === cardId);
-    
+
     if (targetCardId) {
       const targetIndex = cards.value.findIndex(c => c.id === targetCardId);
       // Would insert before target, so it's not a move if:
@@ -183,11 +184,11 @@ export const useKanbanStore = defineStore('kanban', () => {
       return !lastCardInColumn || lastCardInColumn.id !== cardId;
     }
   };
-  
+
   const moveCard = (cardId: string, targetColumnId: string, targetCardId: string | null = null) => {
     const cardIndex = cards.value.findIndex(c => c.id === cardId);
     if (cardIndex === -1) return;
-    
+
     // Check if this would actually move the card
     if (!wouldMoveCard(cardId, targetColumnId, targetCardId)) {
       return;
@@ -214,7 +215,7 @@ export const useKanbanStore = defineStore('kanban', () => {
         cards.value.splice(lastIndex + 1, 0, movedCard);
       }
     }
-    
+
     // Force position updates after move
     nextTick(() => {
       cleanupCardPositions();
@@ -314,7 +315,7 @@ export const useKanbanStore = defineStore('kanban', () => {
   const reportCardPosition = (id: string, pos: CardPosition) => {
     cardPositions.value[id] = pos;
   };
-  
+
   // Clean up positions for cards that no longer exist or are not visible
   const cleanupCardPositions = () => {
     const visibleIds = new Set(visibleCards.value.map(c => c.id));
@@ -340,7 +341,7 @@ export const useKanbanStore = defineStore('kanban', () => {
   const updateBoardTitle = (title: string) => {
     boardTitle.value = title;
   };
-  
+
   const editCard = (cardId: string) => {
     // Emit a custom event that the card component can listen to
     const event = new CustomEvent('edit-card', { 
@@ -367,6 +368,41 @@ export const useKanbanStore = defineStore('kanban', () => {
     }
   };
 
+  // Card selection methods
+  const toggleCardSelection = (cardId: string, ctrlKey: boolean = false) => {
+    const index = selectedCardIds.value.indexOf(cardId);
+
+    if (!ctrlKey) {
+      // If ctrl key is not pressed, clear selection and select only this card
+      if (index === -1 || selectedCardIds.value.length > 1) {
+        selectedCardIds.value = [cardId];
+      } else {
+        // If already the only selected card, deselect it
+        selectedCardIds.value = [];
+      }
+    } else {
+      // If ctrl key is pressed, toggle selection
+      if (index === -1) {
+        selectedCardIds.value.push(cardId);
+      } else {
+        selectedCardIds.value.splice(index, 1);
+      }
+    }
+  };
+
+  const isCardSelected = (cardId: string): boolean => {
+    return selectedCardIds.value.includes(cardId);
+  };
+
+  const clearCardSelection = () => {
+    selectedCardIds.value = [];
+  };
+
+  // Reset selection when board is initialized
+  watch(() => boardTitle.value, () => {
+    clearCardSelection();
+  });
+
   /**
    * Get current board data for external access (e.g., for persistence)
    */
@@ -386,7 +422,7 @@ export const useKanbanStore = defineStore('kanban', () => {
       cleanupCardPositions();
     });
   });
-  
+
   // Emit board change events for external persistence
   watch([cards, boardTitle, focusedCardId], ([newCards, newTitle, newFocusedCardId]) => {
     emitter.emit('board:changed', {
@@ -401,19 +437,20 @@ export const useKanbanStore = defineStore('kanban', () => {
   return {
     // Static data
     columns,
-    
+
     // State
     boardTitle,
     cards,
     focusedCardId,
     temporaryVisibleCardId,
     cardPositions,
+    selectedCardIds,
 
     // Getters
     allTags,
     visibleCards,
     getColumnCards,
-    
+
     // Actions
     initializeBoard,
     addCard,
@@ -429,5 +466,10 @@ export const useKanbanStore = defineStore('kanban', () => {
     editCard,
     editFocusedCard,
     getCurrentBoardData,
+
+    // Selection methods
+    toggleCardSelection,
+    isCardSelected,
+    clearCardSelection,
   };
 });

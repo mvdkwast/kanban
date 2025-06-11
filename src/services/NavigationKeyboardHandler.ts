@@ -52,7 +52,7 @@ export function createNavigationKeyboardHandler() {
     const currentIndex = columnVisibleCards.findIndex((c: Card) => c.id === kanbanStore.focusedCardId);
 
     // Left/Right: Navigate between columns
-    if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !e.ctrlKey && !e.altKey) {
+    if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !e.ctrlKey && !e.altKey && !e.shiftKey) {
       e.preventDefault();
 
       const increment = (e.key === 'ArrowRight' ? 1 : -1);
@@ -99,7 +99,59 @@ export function createNavigationKeyboardHandler() {
       }
     }
 
-    // Ctrl+Left/Right: Move card between columns
+    // Shift+Left/Right: Extend selection between columns
+    else if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !e.ctrlKey && !e.altKey && e.shiftKey) {
+      e.preventDefault();
+
+      const increment = (e.key === 'ArrowRight' ? 1 : -1);
+      let targetColumnIndex = currentColumnIndex + increment;
+
+      let targetColumnCards: any[] = [];
+      let targetColumnId: string | undefined;
+
+      for (; targetColumnIndex >= 0 && targetColumnIndex < kanbanStore.columns.length - 1; targetColumnIndex += increment) {
+        const columnId = kanbanStore.columns[targetColumnIndex].id;
+        const colCards = kanbanStore.visibleCards.filter(c => c.columnId === columnId);
+
+        if (colCards.length) {
+          targetColumnCards = colCards;
+          targetColumnId = columnId;
+          break;
+        }
+      }
+
+      if (!targetColumnId || !targetColumnCards.length) return;
+
+      // Wait for positions to be updated after any filtering changes
+      const currentPos = kanbanStore.cardPositions[kanbanStore.focusedCardId!];
+      let targetCardId: string;
+
+      if (currentPos) {
+        const targetCard = TaskManager.findCardInColumnAtY(
+            targetColumnCards,
+            kanbanStore.cardPositions,
+            currentPos.top,
+            currentPos.bottom
+        );
+
+        if (targetCard) {
+          targetCardId = targetCard.id;
+        } else {
+          // Fallback to closest index
+          const targetIndex = Math.min(currentIndex, targetColumnCards.length - 1);
+          targetCardId = targetColumnCards[targetIndex].id;
+        }
+      } else {
+        // No position data, use index-based navigation
+        const targetIndex = Math.min(currentIndex, targetColumnCards.length - 1);
+        targetCardId = targetColumnCards[targetIndex].id;
+      }
+
+      kanbanStore.focusCard(targetCardId);
+      kanbanStore.toggleCardSelection(targetCardId, true);
+    }
+
+    // Ctrl+Left/Right: Move card(s) between columns
     else if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && e.ctrlKey && !e.altKey) {
       e.preventDefault();
 
@@ -111,6 +163,12 @@ export function createNavigationKeyboardHandler() {
 
       // Get current position before move
       const currentPos = kanbanStore.cardPositions[kanbanStore.focusedCardId!];
+
+      // Check if we have multiple cards selected
+      const hasMultipleCardsSelected = kanbanStore.selectedCardIds.length > 0;
+      const cardsToMove = hasMultipleCardsSelected 
+        ? kanbanStore.selectedCardIds 
+        : [kanbanStore.focusedCardId!];
 
       // Use position to determine where to insert
       if (currentPos && visibleCardsInTarget.length > 0) {
@@ -144,56 +202,127 @@ export function createNavigationKeyboardHandler() {
             }
           }
 
-          kanbanStore.moveCard(kanbanStore.focusedCardId!, targetColumnId, targetCardId);
+          // Move all selected cards
+          cardsToMove.forEach(cardId => {
+            kanbanStore.moveCard(cardId, targetColumnId, targetCardId);
+          });
+
+          // Keep focus on the originally focused card
           TaskManager.bringCardIntoView(kanbanStore.focusedCardId);
         }, 100); // Increased timeout for position stability
       } else {
         // Fallback: move to end of column if no position data or empty column
-        kanbanStore.moveCard(kanbanStore.focusedCardId!, targetColumnId, null);
+        cardsToMove.forEach(cardId => {
+          kanbanStore.moveCard(cardId, targetColumnId, null);
+        });
         TaskManager.bringCardIntoView(kanbanStore.focusedCardId);
       }
     }
 
     // Up/Down: Navigate within column
-    else if (e.key === 'ArrowUp' && !e.ctrlKey && !e.altKey) {
+    else if (e.key === 'ArrowUp' && !e.ctrlKey && !e.altKey && !e.shiftKey) {
       e.preventDefault();
       if (currentIndex > 0) {
         kanbanStore.focusCard(columnVisibleCards[currentIndex - 1].id);
       }
-    } else if (e.key === 'ArrowDown' && !e.ctrlKey && !e.altKey) {
+    } else if (e.key === 'ArrowDown' && !e.ctrlKey && !e.altKey && !e.shiftKey) {
       e.preventDefault();
       if (currentIndex < columnVisibleCards.length - 1) {
         kanbanStore.focusCard(columnVisibleCards[currentIndex + 1].id);
       }
     }
 
-    // Ctrl+Up/Down: Move card within column
+    // Shift+Up/Down: Extend selection within column
+    else if (e.key === 'ArrowUp' && !e.ctrlKey && !e.altKey && e.shiftKey) {
+      e.preventDefault();
+      if (currentIndex > 0) {
+        const cardId = columnVisibleCards[currentIndex - 1].id;
+        kanbanStore.focusCard(cardId);
+        kanbanStore.toggleCardSelection(cardId, true);
+      }
+    } else if (e.key === 'ArrowDown' && !e.ctrlKey && !e.altKey && e.shiftKey) {
+      e.preventDefault();
+      if (currentIndex < columnVisibleCards.length - 1) {
+        const cardId = columnVisibleCards[currentIndex + 1].id;
+        kanbanStore.focusCard(cardId);
+        kanbanStore.toggleCardSelection(cardId, true);
+      }
+    }
+
+    // Ctrl+Up/Down: Move card(s) within column
     else if (e.key === 'ArrowUp' && e.ctrlKey && !e.altKey) {
       e.preventDefault();
       if (currentIndex > 0) {
         const targetId = columnVisibleCards[currentIndex - 1].id;
-        const cardIndex = kanbanStore.cards.findIndex(c => c.id === kanbanStore.focusedCardId);
         const targetIndex = kanbanStore.cards.findIndex(c => c.id === targetId);
 
-        if (cardIndex !== -1 && targetIndex !== -1) {
-          const [card] = kanbanStore.cards.splice(cardIndex, 1);
-          kanbanStore.cards.splice(targetIndex, 0, card);
-          TaskManager.bringCardIntoView(kanbanStore.focusedCardId);
-        }
+        // Check if we have multiple cards selected
+        const hasMultipleCardsSelected = kanbanStore.selectedCardIds.length > 0;
+        const cardsToMove = hasMultipleCardsSelected 
+          ? kanbanStore.selectedCardIds.filter(id => {
+              // Only move cards in the same column
+              const card = kanbanStore.cards.find(c => c.id === id);
+              return card && card.columnId === currentCard.columnId;
+            })
+          : [kanbanStore.focusedCardId!];
+
+        // Sort cards by their current position in the array (to maintain relative order)
+        cardsToMove.sort((a, b) => {
+          const indexA = kanbanStore.cards.findIndex(c => c.id === a);
+          const indexB = kanbanStore.cards.findIndex(c => c.id === b);
+          return indexA - indexB;
+        });
+
+        // Move each card
+        let currentTargetIndex = targetIndex;
+        cardsToMove.forEach(cardId => {
+          const cardIndex = kanbanStore.cards.findIndex(c => c.id === cardId);
+          if (cardIndex !== -1 && cardIndex > currentTargetIndex) {
+            const [card] = kanbanStore.cards.splice(cardIndex, 1);
+            kanbanStore.cards.splice(currentTargetIndex, 0, card);
+            // Update target index for next card
+            currentTargetIndex++;
+          }
+        });
+
+        TaskManager.bringCardIntoView(kanbanStore.focusedCardId);
       }
     } else if (e.key === 'ArrowDown' && e.ctrlKey && !e.altKey) {
       e.preventDefault();
       if (currentIndex < columnVisibleCards.length - 1) {
         const targetId = columnVisibleCards[currentIndex + 1].id;
-        const cardIndex = kanbanStore.cards.findIndex(c => c.id === kanbanStore.focusedCardId);
         const targetIndex = kanbanStore.cards.findIndex(c => c.id === targetId);
 
-        if (cardIndex !== -1 && targetIndex !== -1) {
-          const [card] = kanbanStore.cards.splice(cardIndex, 1);
-          const insertAt = cardIndex < targetIndex ? targetIndex : targetIndex + 1;
-          kanbanStore.cards.splice(insertAt, 0, card);
-          TaskManager.bringCardIntoView(kanbanStore.focusedCardId);
-        }
+        // Check if we have multiple cards selected
+        const hasMultipleCardsSelected = kanbanStore.selectedCardIds.length > 0;
+        const cardsToMove = hasMultipleCardsSelected 
+          ? kanbanStore.selectedCardIds.filter(id => {
+              // Only move cards in the same column
+              const card = kanbanStore.cards.find(c => c.id === id);
+              return card && card.columnId === currentCard.columnId;
+            })
+          : [kanbanStore.focusedCardId!];
+
+        // Sort cards by their current position in the array in reverse (to maintain relative order when moving down)
+        cardsToMove.sort((a, b) => {
+          const indexA = kanbanStore.cards.findIndex(c => c.id === a);
+          const indexB = kanbanStore.cards.findIndex(c => c.id === b);
+          return indexB - indexA; // Reverse sort for moving down
+        });
+
+        // Move each card
+        let currentTargetIndex = targetIndex;
+        cardsToMove.forEach(cardId => {
+          const cardIndex = kanbanStore.cards.findIndex(c => c.id === cardId);
+          if (cardIndex !== -1 && cardIndex < currentTargetIndex) {
+            const [card] = kanbanStore.cards.splice(cardIndex, 1);
+            const insertAt = cardIndex < currentTargetIndex ? currentTargetIndex : currentTargetIndex + 1;
+            kanbanStore.cards.splice(insertAt, 0, card);
+            // No need to update target index when moving down as we're processing cards from bottom to top
+          }
+        });
+
+        TaskManager.bringCardIntoView(kanbanStore.focusedCardId);
       }
     }
 
@@ -206,39 +335,89 @@ export function createNavigationKeyboardHandler() {
       kanbanStore.focusCard(columnVisibleCards[columnVisibleCards.length - 1].id);
     }
 
-    // Ctrl+Home/End: Move card to first/last position in column
+    // Ctrl+Home/End: Move card(s) to first/last position in column
     else if (e.key === 'Home' && e.ctrlKey && !e.altKey) {
       e.preventDefault();
       if (columnVisibleCards.length > 1) {
-        const cardIndex = kanbanStore.cards.findIndex(c => c.id === kanbanStore.focusedCardId);
-        if (cardIndex !== -1) {
-          const [card] = kanbanStore.cards.splice(cardIndex, 1);
+        // Check if we have multiple cards selected
+        const hasMultipleCardsSelected = kanbanStore.selectedCardIds.length > 0;
+        const cardsToMove = hasMultipleCardsSelected 
+          ? kanbanStore.selectedCardIds.filter(id => {
+              // Only move cards in the same column
+              const card = kanbanStore.cards.find(c => c.id === id);
+              return card && card.columnId === currentCard.columnId;
+            })
+          : [kanbanStore.focusedCardId!];
 
-          // Find the first card in the column
-          const firstCardInColumn = kanbanStore.cards.find(c => c.columnId === currentCard.columnId);
-          const firstCardIndex = firstCardInColumn ? kanbanStore.cards.indexOf(firstCardInColumn) : -1;
+        // Sort cards by their current position in the array (to maintain relative order)
+        cardsToMove.sort((a, b) => {
+          const indexA = kanbanStore.cards.findIndex(c => c.id === a);
+          const indexB = kanbanStore.cards.findIndex(c => c.id === b);
+          return indexA - indexB;
+        });
 
-          // Insert at the beginning of the column
-          kanbanStore.cards.splice(firstCardIndex !== -1 ? firstCardIndex : 0, 0, card);
-          TaskManager.bringCardIntoView(kanbanStore.focusedCardId);
-        }
+        // Find the first card in the column
+        const firstCardInColumn = kanbanStore.cards.find(c => c.columnId === currentCard.columnId);
+        let insertIndex = firstCardInColumn ? kanbanStore.cards.indexOf(firstCardInColumn) : 0;
+
+        // Move each card to the beginning of the column
+        cardsToMove.forEach(cardId => {
+          const cardIndex = kanbanStore.cards.findIndex(c => c.id === cardId);
+          if (cardIndex !== -1) {
+            // If the card is already before the insert point, adjust the insert point
+            if (cardIndex < insertIndex) {
+              insertIndex--;
+            }
+            const [card] = kanbanStore.cards.splice(cardIndex, 1);
+            kanbanStore.cards.splice(insertIndex, 0, card);
+            // Update insert index for next card
+            insertIndex++;
+          }
+        });
+
+        TaskManager.bringCardIntoView(kanbanStore.focusedCardId);
       }
     } else if (e.key === 'End' && e.ctrlKey && !e.altKey) {
       e.preventDefault();
       if (columnVisibleCards.length > 1) {
-        const cardIndex = kanbanStore.cards.findIndex(c => c.id === kanbanStore.focusedCardId);
-        if (cardIndex !== -1) {
-          const [card] = kanbanStore.cards.splice(cardIndex, 1);
+        // Check if we have multiple cards selected
+        const hasMultipleCardsSelected = kanbanStore.selectedCardIds.length > 0;
+        const cardsToMove = hasMultipleCardsSelected 
+          ? kanbanStore.selectedCardIds.filter(id => {
+              // Only move cards in the same column
+              const card = kanbanStore.cards.find(c => c.id === id);
+              return card && card.columnId === currentCard.columnId;
+            })
+          : [kanbanStore.focusedCardId!];
 
-          // Find the last card in the column
-          const columnCards = kanbanStore.cards.filter(c => c.columnId === currentCard.columnId);
-          const lastCardInColumn = columnCards.length > 0 ? columnCards[columnCards.length - 1] : null;
-          const lastCardIndex = lastCardInColumn ? kanbanStore.cards.indexOf(lastCardInColumn) : -1;
+        // Sort cards by their current position in the array (to maintain relative order)
+        cardsToMove.sort((a, b) => {
+          const indexA = kanbanStore.cards.findIndex(c => c.id === a);
+          const indexB = kanbanStore.cards.findIndex(c => c.id === b);
+          return indexA - indexB;
+        });
 
-          // Insert at the end of the column
-          kanbanStore.cards.splice(lastCardIndex !== -1 ? lastCardIndex + 1 : kanbanStore.cards.length, 0, card);
-          TaskManager.bringCardIntoView(kanbanStore.focusedCardId);
-        }
+        // Find the last card in the column
+        const columnCards = kanbanStore.cards.filter(c => c.columnId === currentCard.columnId);
+        const lastCardInColumn = columnCards.length > 0 ? columnCards[columnCards.length - 1] : null;
+        let insertIndex = lastCardInColumn ? kanbanStore.cards.indexOf(lastCardInColumn) + 1 : kanbanStore.cards.length;
+
+        // Move each card to the end of the column
+        cardsToMove.forEach(cardId => {
+          const cardIndex = kanbanStore.cards.findIndex(c => c.id === cardId);
+          if (cardIndex !== -1) {
+            // If the card is already after the insert point, adjust the insert point
+            if (cardIndex < insertIndex) {
+              insertIndex--;
+            }
+            const [card] = kanbanStore.cards.splice(cardIndex, 1);
+            kanbanStore.cards.splice(insertIndex, 0, card);
+            // Update insert index for next card
+            insertIndex++;
+          }
+        });
+
+        TaskManager.bringCardIntoView(kanbanStore.focusedCardId);
       }
     }
 
@@ -247,6 +426,12 @@ export function createNavigationKeyboardHandler() {
         !e.ctrlKey && !e.altKey && !e.shiftKey) {
       e.preventDefault();
       kanbanStore.editCard(currentCard.id);
+    }
+
+    // Ctrl+Space: Toggle selection of the focused card
+    else if (e.key === ' ' && e.ctrlKey && !e.altKey && !e.shiftKey) {
+      e.preventDefault();
+      kanbanStore.toggleCardSelection(currentCard.id);
     }
 
     // Delete: Delete the current card

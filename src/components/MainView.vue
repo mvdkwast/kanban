@@ -120,6 +120,14 @@
         @close="showHelp = false"
     />
 
+    <!-- Card Edit Modal -->
+    <CardEditModal
+        :card="editingCard"
+        :column-title="editingColumnTitle"
+        @save="handleModalSave"
+        @close="handleModalClose"
+    />
+
     <!-- Save feedback toast -->
     <SaveToast :show="showSaveToast"/>
 
@@ -129,7 +137,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, onMounted, onUnmounted, ref, watch} from 'vue';
+import {computed, nextTick, onMounted, onUnmounted, ref, watch} from 'vue';
 import {useKanbanStore} from '../stores/useKanbanStore';
 import {useBoardStore} from '../stores/useBoardStore';
 import {useRouter} from '../services/router';
@@ -148,7 +156,8 @@ import SaveToast from './SaveToast.vue';
 import TypingOverlay from './TypingOverlay.vue';
 import CompletionToast from './CompletionToast.vue';
 import HamburgerMenu from './HamburgerMenu.vue';
-import {BoardData} from "@/types.ts";
+import CardEditModal from './CardEditModal.vue';
+import type {BoardData, Card} from "@/types.ts";
 
 const kanbanStore = useKanbanStore();
 const boardStore = useBoardStore();
@@ -160,6 +169,13 @@ const showHelp = ref(false);
 const showSaveToast = ref(false);
 const showCompletionToast = ref(false);
 const completionTargetColumn = ref('');
+const editingCard = ref<Card | null>(null);
+
+const editingColumnTitle = computed(() => {
+  if (!editingCard.value) return '';
+  const col = kanbanStore.columns.find(c => c.id === editingCard.value!.columnId);
+  return col?.title || '';
+});
 
 // Refs
 const boardManagerRef = ref();
@@ -271,13 +287,9 @@ const setupStoreOrchestration = () => {
     }
   }, {immediate: true});
 
-  // Listen to kanban store changes → save to board store
+  // Listen to kanban store changes → update in-memory board data + debounced save
   emitter.on('board:changed', (boardData: BoardData) => {
-    boardStore.setBoardData({
-      ...boardData,
-      id: boardStore.currentBoardId,
-      lastModified: new Date()
-    });
+    boardStore.updateCurrentBoardInMemory(boardData);
     boardStore.saveCurrentBoard();
   });
 };
@@ -390,6 +402,23 @@ const handleHelpClick = () => {
   showHelp.value = true;
 };
 
+const handleModalSave = (cardId: string, content: string) => {
+  handleUpdateCard(cardId, content);
+  closeModal();
+};
+
+const handleModalClose = () => {
+  closeModal();
+};
+
+const closeModal = () => {
+  editingCard.value = null;
+  nextTick(() => {
+    const el = document.querySelector('[data-focused="true"]') as HTMLElement;
+    el?.focus();
+  });
+};
+
 const handleImport = async (e: Event) => {
   const target = e.target as HTMLInputElement;
   const file = target.files?.[0];
@@ -452,6 +481,10 @@ const setupGlobalEventListeners = () => {
 
   // FIXME - we should refactor this so the event transmits a card ID instead of a column, then we should refactor
   //         the toast components to a single component that can display different messages
+  emitter.on('card:edit', (card: Card) => {
+    editingCard.value = { ...card };
+  });
+
   emitter.on('card:completed', (targetColumn: string) => {
     completionTargetColumn.value = targetColumn;
     showCompletionToast.value = true;
@@ -471,6 +504,7 @@ onUnmounted(() => {
   emitter.off('global:newBoard');
   emitter.off('global:prevBoard');
   emitter.off('global:nextBoard');
+  emitter.off('card:edit');
   emitter.off('card:completed');
   emitter.off('board:changed');
 });

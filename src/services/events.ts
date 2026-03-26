@@ -24,6 +24,7 @@ export type Events = {
     
     // Card events
     'card:completed': string;
+    'card:edit': Card;
 
     // board events
     'board:changed': BoardData;

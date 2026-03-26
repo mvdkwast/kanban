@@ -342,12 +342,10 @@ export const useKanbanStore = defineStore('kanban', () => {
   };
   
   const editCard = (cardId: string) => {
-    // Emit a custom event that the card component can listen to
-    const event = new CustomEvent('edit-card', { 
-      detail: { cardId },
-      bubbles: true 
-    });
-    document.dispatchEvent(event);
+    const card = cards.value.find(c => c.id === cardId);
+    if (card) {
+      emitter.emit('card:edit', card);
+    }
   };
 
   // smart focus logic to focus a card after focus is regained

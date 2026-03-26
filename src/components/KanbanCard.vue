@@ -70,6 +70,7 @@ import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { extractTags, getTagColor, processContent } from '../utils';
 import type { Card, CardPosition } from '../types';
 import { processMarkdown } from '../util/markdown';
+import { emitter } from '../services/events';
 
 interface Props {
   card: Card;
@@ -100,31 +101,21 @@ const isDragOver = ref(false);
 const tags = computed(() => extractTags(props.card.content));
 const processedContent = computed(() => processContent(props.card.content));
 
+const firstLineContent = computed(() => {
+  const firstLine = processedContent.value.split('\n')[0];
+  return firstLine || '';
+});
+
 // Process markdown content
 const processedMarkdown = computed(() => {
   try {
-    // Simple markdown processing for Vue
-    const content = processedContent.value;
-    return processMarkdown(content);
+    return processMarkdown(firstLineContent.value);
   } catch (error) {
-    return processedContent.value;
+    return firstLineContent.value;
   }
 });
 
 
-// Listen for edit-card events
-onMounted(() => {
-  const handleEditEvent = (e: CustomEvent) => {
-    if (e.detail.cardId === props.card.id) {
-      startEditing();
-    }
-  };
-  document.addEventListener('edit-card', handleEditEvent as EventListener);
-  
-  onUnmounted(() => {
-    document.removeEventListener('edit-card', handleEditEvent as EventListener);
-  });
-});
 
 // Focus the textarea when editing starts or when card is new
 watch([isEditing], async ([editing]) => {
@@ -243,7 +234,11 @@ const handleCardClick = (e: MouseEvent) => {
 };
 
 const startEditing = () => {
-  isEditing.value = true;
+  if (props.card.isNew) {
+    isEditing.value = true;
+  } else {
+    emitter.emit('card:edit', props.card);
+  }
 };
 
 const handleCardDoubleClick = (e: MouseEvent) => {
@@ -252,10 +247,10 @@ const handleCardDoubleClick = (e: MouseEvent) => {
 };
 
 const handleCardKeyDown = (e: KeyboardEvent) => {
-  // Handle Enter to edit when card is focused
-  if ((e.key === 'Enter' || e.key === ' ' || e.key === 'F2') && 
+  if ((e.key === 'Enter' || e.key === ' ' || e.key === 'F2') &&
       !e.ctrlKey && !e.altKey && !e.shiftKey && !isEditing.value) {
     e.preventDefault();
+    e.stopPropagation();
     startEditing();
   }
 };

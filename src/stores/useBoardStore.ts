@@ -72,6 +72,21 @@ export const useBoardStore = defineStore('board', () => {
   };
 
   /**
+   * Update the in-memory board data for the current board.
+   * This keeps boards.value (and thus currentBoardData) in sync with the kanban store,
+   * so that saveCurrentBoard reads fresh data instead of stale init-time data.
+   */
+  const updateCurrentBoardInMemory = (boardData: Partial<BoardData>) => {
+    const board = boards.value.find(b => b.id === currentBoardId.value);
+    if (board) {
+      if (boardData.title !== undefined) board.title = boardData.title;
+      if (boardData.cards !== undefined) board.cards = boardData.cards;
+      if (boardData.focusedCardId !== undefined) board.focusedCardId = boardData.focusedCardId;
+      board.lastModified = new Date();
+    }
+  };
+
+  /**
    * Save current board data with debounced persistence
    */
   const saveCurrentBoard = () => {
@@ -225,6 +240,7 @@ export const useBoardStore = defineStore('board', () => {
     switchToNextBoard,
     switchToPreviousBoard,
 
+    updateCurrentBoardInMemory,
     saveCurrentBoard,
     saveBoard,
     createNewBoard,

@@ -60,6 +60,9 @@
           {{ tag }}
         </span>
       </div>
+      <div v-if="hasDescription" class="flex justify-end mt-1">
+        <div class="w-4 h-px rounded-full" :class="isFocused ? 'bg-gray-500' : 'bg-gray-600'"></div>
+      </div>
     </div>
     </div>
   </div>
@@ -104,6 +107,11 @@ const processedContent = computed(() => processContent(props.card.content));
 const firstLineContent = computed(() => {
   const firstLine = processedContent.value.split('\n')[0];
   return firstLine || '';
+});
+
+const hasDescription = computed(() => {
+  const lines = processedContent.value.split('\n');
+  return lines.length > 1 && lines.slice(1).some(line => line.trim() !== '');
 });
 
 // Process markdown content

@@ -11,7 +11,7 @@
         @click.stop
       >
         <!-- Status -->
-        <div class="text-sm font-semibold uppercase tracking-wide text-gray-300 mb-3">{{ columnTitle }}</div>
+        <div class="text-sm font-semibold tracking-wide text-gray-300 mb-3">{{ columnTitle }}</div>
 
         <!-- Editor -->
         <textarea

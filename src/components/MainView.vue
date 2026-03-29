@@ -124,6 +124,7 @@
     <CardEditModal
         :card="editingCard"
         :column-title="editingColumnTitle"
+        :all-tags="kanbanStore.allTags"
         @save="handleModalSave"
         @close="handleModalClose"
     />

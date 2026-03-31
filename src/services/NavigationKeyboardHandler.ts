@@ -18,6 +18,27 @@ export function createNavigationKeyboardHandler() {
       return;
     }
 
+    // Escape: Ensure a card is focused
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      // If we have a focused card, re-apply DOM focus
+      if (kanbanStore.focusedCardId) {
+        const el = document.querySelector(`[data-card-id="${kanbanStore.focusedCardId}"]`) as HTMLElement;
+        el?.focus();
+      } else {
+        // No card focused, find the best one
+        const bestCardId = TaskManager.findBestCardToFocus(
+          kanbanStore.visibleCards,
+          kanbanStore.columns,
+          null
+        );
+        if (bestCardId) {
+          kanbanStore.focusCard(bestCardId);
+        }
+      }
+      return;
+    }
+
     // Insert: Add a new card
     if (e.key === 'Insert') {
       e.preventDefault();

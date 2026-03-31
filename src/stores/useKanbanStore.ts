@@ -41,14 +41,6 @@ export const useKanbanStore = defineStore('kanban', () => {
   const visibleCards = computed(() => {
     const filtered = TaskManager.getVisibleCards(cards.value, selectedTags.value, searchText.value);
 
-    console.log('visibleCards computed:', {
-      totalCards: cards.value.length,
-      filteredCards: filtered.length,
-      selectedTags: selectedTags.value,
-      searchText: searchText.value,
-      temporaryVisibleCardId: temporaryVisibleCardId.value
-    });
-
     // If there's a temporary card that should be visible, add it
     if (temporaryVisibleCardId.value) {
       const tempCard = cards.value.find(c => c.id === temporaryVisibleCardId.value);
@@ -241,7 +233,7 @@ export const useKanbanStore = defineStore('kanban', () => {
 
     // check if column is not empty after we're moving the card (at this time the card is still in the current column)
     if (cardsInCurrentColumn.length > 1) {
- if (currentCardIndex < cardsInCurrentColumn.length - 2) {
+ if (currentCardIndex < cardsInCurrentColumn.length - 1) {
         // Try to focus the card to the card after the current one
         nextCardId = cardsInCurrentColumn[currentCardIndex + 1].id;
       }
@@ -378,10 +370,15 @@ export const useKanbanStore = defineStore('kanban', () => {
     };
   };
 
-  // Watch for visible cards changes to trigger position cleanup
-  watch(visibleCards, () => {
+  // Watch for visible cards changes to trigger position cleanup and focus recovery
+  watch(visibleCards, (newVisibleCards) => {
     nextTick(() => {
       cleanupCardPositions();
+
+      // If focused card is no longer visible, recover focus
+      if (focusedCardId.value && !newVisibleCards.some(c => c.id === focusedCardId.value)) {
+        smartFocusCard();
+      }
     });
   });
   

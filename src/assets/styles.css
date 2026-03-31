@@ -30,6 +30,30 @@
     background-color: #4b5563;
 }
 
+.ac-dropdown-scrollbar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.ac-dropdown-scrollbar::-webkit-scrollbar-track {
+    border-radius: 6px;
+    background-color: #374151;
+}
+
+.ac-dropdown-scrollbar::-webkit-scrollbar-thumb {
+    border-radius: 6px;
+    background-color: #4b5563;
+}
+
+.ac-dropdown-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: #6b7280;
+}
+
+/* Firefox scrollbar styling */
+.ac-dropdown-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #4b5563 #374151;
+}
+
 /* Vue transition classes */
 .v-enter-active,
 .v-leave-active {

@@ -36,16 +36,36 @@
       @dragstart="handleDragStart"
       @dragend="handleDragEnd"
     >
-    <textarea
-      v-if="isEditing"
-      ref="textareaRef"
-      v-model="tempContent"
-      class="w-full bg-transparent text-white p-0 resize-none focus:outline-none custom-scrollbar"
-      rows="7"
-      @blur="handleSave"
-      @keydown="handleKeyDown"
-      @click.stop
-    />
+    <div v-if="isEditing" class="relative">
+      <textarea
+        ref="textareaRef"
+        v-model="tempContent"
+        class="w-full bg-transparent text-white p-0 resize-none focus:outline-none custom-scrollbar"
+        rows="7"
+        @blur="handleBlur"
+        @keydown="handleKeyDown"
+        @input="handleAutocompleteInput"
+        @click.stop="closeAutocomplete"
+      />
+      <!-- Tag autocomplete dropdown -->
+      <div
+        v-if="acActive && acFilteredTags.length > 0"
+        ref="acDropdownRef"
+        :style="acDropdownStyle"
+        class="absolute z-10 bg-gray-700 border border-gray-600 rounded shadow-lg max-h-40 overflow-y-auto w-48 ac-dropdown-scrollbar"
+      >
+        <div
+          v-for="(tag, index) in acFilteredTags"
+          :key="tag"
+          :data-ac-index="index"
+          class="px-3 py-1.5 text-sm cursor-pointer"
+          :class="index === acSelectedIndex ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-600'"
+          @mousedown.prevent="insertCompletion(tag)"
+        >
+          {{ tag }}
+        </div>
+      </div>
+    </div>
     <div v-else>
       <div class="text-gray-200 prose prose-invert prose-sm max-w-none hyphenated">
         <div v-html="processedMarkdown"></div>
@@ -69,8 +89,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, nextTick, onMounted, onUnmounted, toRef } from 'vue';
 import { extractTags, getTagColor, processContent } from '../utils';
+import { useTagAutocomplete } from '../composables/useTagAutocomplete';
 import type { Card, CardPosition } from '../types';
 import { processMarkdown } from '../util/markdown';
 import { emitter } from '../services/events';
@@ -79,6 +100,7 @@ interface Props {
   card: Card;
   columnId: string;
   isFocused: boolean;
+  allTags: string[];
 }
 
 interface Emits {
@@ -102,6 +124,18 @@ const isDragging = ref(false);
 const isDragOver = ref(false);
 
 const tags = computed(() => extractTags(props.card.content));
+
+const {
+  dropdownRef: acDropdownRef,
+  acActive,
+  acFilteredTags,
+  acSelectedIndex,
+  dropdownStyle: acDropdownStyle,
+  closeAutocomplete,
+  insertCompletion,
+  handleAutocompleteInput,
+  handleAutocompleteKeyDown,
+} = useTagAutocomplete(textareaRef, tempContent, toRef(props, 'allTags'));
 const processedContent = computed(() => processContent(props.card.content));
 
 const firstLineContent = computed(() => {
@@ -213,8 +247,17 @@ const handleSave = () => {
   isEditing.value = false;
 };
 
+const handleBlur = (e: FocusEvent) => {
+  // Don't save if clicking on the autocomplete dropdown
+  const related = e.relatedTarget as HTMLElement | null;
+  if (related && acDropdownRef.value?.contains(related)) return;
+  handleSave();
+};
+
 const handleKeyDown = (e: KeyboardEvent) => {
   e.stopPropagation(); // Prevent event from bubbling to global handlers
+
+  if (handleAutocompleteKeyDown(e)) return;
 
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();

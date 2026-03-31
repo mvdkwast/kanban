@@ -78,6 +78,7 @@
           :columns="kanbanStore.columns"
           :visible-cards="kanbanStore.visibleCards"
           :focused-card-id="kanbanStore.focusedCardId"
+          :all-tags="kanbanStore.allTags"
           @add-card="handleAddCard"
           @focus-card="handleFocusCard"
           @update-card="handleUpdateCard"

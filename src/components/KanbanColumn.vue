@@ -64,6 +64,7 @@
               :card="card"
               :column-id="column.id"
               :is-focused="focusedCardId === card.id"
+              :all-tags="allTags"
               @focus="handleFocusCard"
               @update="handleUpdateCard"
               @delete="handleDeleteCard"
@@ -87,6 +88,7 @@ interface Props {
   column: Column;
   cards: Card[];
   focusedCardId: string | null;
+  allTags: string[];
   isLast: boolean;
 }
 

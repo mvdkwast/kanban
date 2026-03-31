@@ -6,6 +6,7 @@
         :column="column"
         :cards="getColumnCards(column.id)"
         :focused-card-id="focusedCardId"
+        :all-tags="allTags"
         :is-last="i === columns.length - 1"
         @add-card="handleAddCard"
         @focus-card="handleFocusCard"
@@ -27,6 +28,7 @@ interface Props {
   columns: Column[];
   visibleCards: Card[];
   focusedCardId: string | null;
+  allTags: string[];
 }
 
 interface Emits {
